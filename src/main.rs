@@ -1,6 +1,11 @@
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
+
+mod weather;
+use crate::weather::WeatherPlugin;
+
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -11,6 +16,7 @@ fn main() {
             ..default()
         }))
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(WeatherPlugin)
         .add_startup_system(setup_camera)
         .run();
 }
