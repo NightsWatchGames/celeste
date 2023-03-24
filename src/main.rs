@@ -18,7 +18,12 @@ fn main() {
         .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(WeatherPlugin)
         .add_plugin(LdtkPlugin)
+        .insert_resource(ClearColor(Color::rgb(0.56, 0.33, 0.23)))
         .insert_resource(LevelSelection::Index(0))
+        .insert_resource(LdtkSettings { //设置背景透明
+            level_background: LevelBackground::Nonexistent,
+            ..Default::default()
+        })
         .add_startup_system(setup_camera)
         .run();
 }
