@@ -1,5 +1,6 @@
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_ecs_ldtk::prelude::*;
 
 use ui::setup_start_menu;
 
@@ -18,11 +19,25 @@ fn main() {
         }))
         .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(WeatherPlugin)
+        .add_plugin(LdtkPlugin)
+        .insert_resource(ClearColor(Color::rgb(0.56, 0.33, 0.23)))
+        .insert_resource(LevelSelection::Index(0))
+        .insert_resource(LdtkSettings { //设置背景透明
+            level_background: LevelBackground::Nonexistent,
+            ..Default::default()
+        })
         .add_startup_system(setup_camera)
         .add_startup_system(setup_start_menu)
         .run();
 }
 
-pub fn setup_camera(mut commands: Commands) {
+pub fn setup_camera(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>
+) {
     commands.spawn(Camera2dBundle::default());
+    commands.spawn(LdtkWorldBundle {
+        ldtk_handle: asset_server.load("test.ldtk"),
+        ..Default::default()
+    });
 }

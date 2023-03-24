@@ -523,6 +523,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_ecs_ldtk"
+version = "0.5.0"
+source = "git+https://github.com/Trouv/bevy_ecs_ldtk?branch=main#d8e0c6d49462fe54d59567bc65863fcd14c880fd"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "bevy_ecs_ldtk_macros",
+ "bevy_ecs_tilemap",
+ "hex",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "bevy_ecs_ldtk_macros"
+version = "0.5.0"
+source = "git+https://github.com/Trouv/bevy_ecs_ldtk?branch=main#d8e0c6d49462fe54d59567bc65863fcd14c880fd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "bevy_ecs_macros"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -532,6 +558,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "bevy_ecs_tilemap"
+version = "0.9.0"
+source = "git+https://github.com/geieredgar/bevy_ecs_tilemap?branch=bevy_track#b0a2924c0477806f0fb91b6afc44ad54e19f155d"
+dependencies = [
+ "bevy",
+ "log",
+ "regex",
 ]
 
 [[package]]
@@ -1161,6 +1197,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy_ecs_ldtk",
 ]
 
 [[package]]
@@ -1884,6 +1921,12 @@ dependencies = [
  "widestring",
  "winapi",
 ]
+
+[[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hexasphere"
