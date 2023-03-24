@@ -27,7 +27,7 @@ fn spawn_weather(
     commands.spawn(MaterialMesh2dBundle {
         mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
         transform: Transform {
-            translation: Vec3::new(0.0, 0.0, 0.0),
+            translation: Vec3::new(0.0, 0.0, 1.0),
             scale: Vec3::new(950., 700., 1.0),
             ..Default::default()
         },
