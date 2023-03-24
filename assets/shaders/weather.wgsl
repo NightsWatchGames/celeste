@@ -11,10 +11,10 @@ struct WeatherMaterial {
 @group(1) @binding(0)
 var<uniform> weather: WeatherMaterial;
 
-const LAYERS = 8;
-const DEPTH = 0.5;
+const LAYERS = 5;
+const DEPTH = 0.1;
 const WIDTH = 0.8;
-const SPEED = 0.3;
+const SPEED = 1.8;
 
 @fragment
 fn fragment(
@@ -25,8 +25,8 @@ fn fragment(
 	let dof: f32 = 5. * sin(weather.time * 0.1);
 	for (var i=0;i<LAYERS;i++) {
 		let fi: f32 = f32(i);
-		var q: vec2<f32> = uv * (1. + fi * DEPTH);
-		q += vec2(q.y*(WIDTH*(fi*7.238917%1.)-WIDTH*.5),SPEED*weather.time/(1.+fi*DEPTH*.03));
+		var q: vec2<f32> = uv * (4. + fi * DEPTH);
+		q += vec2(SPEED*weather.time/(1.+fi*DEPTH*.3),q.x*(WIDTH*(fi*7.238917%1.)-WIDTH*.5));
 		let n: vec3<f32> = vec3<f32>(floor(q), 31.189 + fi);
 		let m: vec3<f32> = floor(n) * 0.00001 + fract(n);
 		let mp: vec3<f32> = (31415.9 + m) / fract(p * m);
