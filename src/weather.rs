@@ -7,7 +7,6 @@ use bevy::{
 
 use bevy::prelude::*;
 
-
 // Plugin that will insert Weather at Z = -10.0, use the custom 'Star Nest' shader
 pub struct WeatherPlugin;
 impl Plugin for WeatherPlugin {
@@ -49,12 +48,8 @@ impl Material2d for WeatherMaterial {
     }
 }
 
-fn update_weather_time(
-    time: Res<Time>,
-    mut weathers: ResMut<Assets<WeatherMaterial>>,
-) {
+fn update_weather_time(time: Res<Time>, mut weathers: ResMut<Assets<WeatherMaterial>>) {
     for (_, weather) in weathers.iter_mut() {
         weather.time += time.delta_seconds();
     }
-    
 }
