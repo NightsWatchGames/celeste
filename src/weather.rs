@@ -45,7 +45,7 @@ struct WeatherMaterial {
 
 impl Material2d for WeatherMaterial {
     fn fragment_shader() -> ShaderRef {
-        "weather.wgsl".into()
+        "shaders/weather.wgsl".into()
     }
 }
 
