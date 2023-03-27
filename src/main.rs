@@ -1,7 +1,9 @@
 use bevy::{prelude::*, render::texture::ImageSampler, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
+use bevy_rapier2d::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use common::AppState;
+use common::{AppState, CAMERA_SCALE};
+use level::{setup_ldtk_world, ColliderBundle, TerrainBundle};
 
 use crate::weather::WeatherPlugin;
 use ui::{cleanup_start_menu, enter_gaming, setup_start_menu};
@@ -9,6 +11,7 @@ use ui::{cleanup_start_menu, enter_gaming, setup_start_menu};
 mod common;
 mod ui;
 mod weather;
+mod level;
 
 fn main() {
     App::new()
@@ -16,6 +19,8 @@ fn main() {
             default_sampler: ImageSampler::nearest_descriptor(),
         }))
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
+        .add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(WeatherPlugin)
         .add_plugin(LdtkPlugin)
         .add_state::<AppState>()
@@ -33,18 +38,12 @@ fn main() {
         .add_system(cleanup_start_menu.in_schedule(OnExit(AppState::StartMenu)))
         // Gaming
         .add_system(setup_ldtk_world.in_schedule(OnEnter(AppState::Gaming)))
+        .register_ldtk_int_cell::<TerrainBundle>(1)
         .run();
 }
 
 pub fn setup_camera(mut commands: Commands) {
     let mut camera2d_bundle = Camera2dBundle::default();
-    camera2d_bundle.projection.scale = 0.1;
+    camera2d_bundle.projection.scale = CAMERA_SCALE;
     commands.spawn(camera2d_bundle);
-}
-
-pub fn setup_ldtk_world(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(LdtkWorldBundle {
-        ldtk_handle: asset_server.load("test.ldtk"),
-        ..Default::default()
-    });
 }

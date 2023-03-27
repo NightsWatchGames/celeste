@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.10"
+bevy_rapier2d = "0.21.0"
 bevy-inspector-egui = "0.18.1"
 bevy_ecs_ldtk = { git = "https://github.com/Trouv/bevy_ecs_ldtk", branch = "main" }
 
