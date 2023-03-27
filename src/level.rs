@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::common::TILE_SIZE;
+use crate::common::{AnimationBundle, AnimationIndices, AnimationTimer, TILE_SIZE};
 
 pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -200.0, 0.0);
 
@@ -21,6 +21,10 @@ pub struct Snowdrift;
 // 木架
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct WoodenStand;
+
+// 气球绳
+#[derive(Debug, Component, Clone, Copy, Default)]
+pub struct BalloonRope;
 
 #[derive(Clone, Debug, Default, Bundle, LdtkIntCell)]
 pub struct ColliderBundle {
@@ -63,6 +67,32 @@ pub struct SnowdriftBundle {
     #[sprite_sheet_bundle("textures/atlas.png", 16.0, 16.0, 8, 5, 0.0, 0.0, 16)]
     #[bundle]
     sprite_bundle: SpriteSheetBundle,
+}
+
+#[derive(Clone, Default, Bundle, LdtkEntity)]
+pub struct BalloonRopeBundle {
+    pub balloon_rope: BalloonRope,
+    #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 13)]
+    #[bundle]
+    sprite_bundle: SpriteSheetBundle,
+    #[from_entity_instance]
+    #[bundle]
+    animation_bundle: AnimationBundle,
+}
+
+impl From<&EntityInstance> for AnimationBundle {
+    fn from(entity_instance: &EntityInstance) -> AnimationBundle {
+        match entity_instance.identifier.as_ref() {
+            "BalloonRope" => AnimationBundle {
+                timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+                indices: AnimationIndices {
+                    first: 13,
+                    last: 15,
+                },
+            },
+            _ => AnimationBundle::default(),
+        }
+    }
 }
 
 impl From<IntGridCell> for ColliderBundle {
@@ -118,6 +148,30 @@ pub fn spawn_ldtk_entity(
                     ..default()
                 },
             });
+        }
+    }
+}
+
+pub fn animate_balloon_rope(
+    time: Res<Time>,
+    mut query: Query<
+        (
+            &mut AnimationTimer,
+            &AnimationIndices,
+            &mut TextureAtlasSprite,
+        ),
+        With<BalloonRope>,
+    >,
+) {
+    for (mut timer, indices, mut sprite) in &mut query {
+        timer.0.tick(time.delta());
+        if timer.0.just_finished() {
+            // 切换到下一个sprite
+            sprite.index = if sprite.index == indices.last {
+                indices.first
+            } else {
+                sprite.index + 1
+            };
         }
     }
 }
