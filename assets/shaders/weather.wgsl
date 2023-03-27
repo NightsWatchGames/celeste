@@ -38,12 +38,9 @@ fn fragment(
 		acc += vec3(smoothstep(edge,-edge,d)*(r.x/(1.+.02*fi*DEPTH)));
 	}
 	//过滤黑色像素 设置为透明
-	/*
 	if (vec3(acc).y == 0.0) {
 		return vec4(vec3(acc),0.0);
 	} else {
 		return vec4(vec3(acc),1.);
 	}
-	*/
-	return vec4(vec3(acc),0.3); //设置透明度
 }
