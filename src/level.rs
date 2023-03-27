@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::common::{AnimationBundle, AnimationIndices, AnimationTimer, TILE_SIZE};
+use crate::common::{AnimationBundle, AnimationIndices, AnimationTimer, AppState, TILE_SIZE};
 
 pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -200.0, 0.0);
 
@@ -35,6 +35,13 @@ pub struct ColliderBundle {
     pub collider: Collider,
     pub rigid_body: RigidBody,
 }
+#[derive(Clone, Debug, Default, Bundle)]
+pub struct SensorBundle {
+    pub collider: Collider,
+    pub sensor: Sensor,
+    pub active_events: ActiveEvents,
+    pub rotation_constraints: LockedAxes,
+}
 
 #[derive(Clone, Debug, Default, Bundle, LdtkIntCell)]
 pub struct TerrainBundle {
@@ -57,6 +64,9 @@ pub struct TrapBundle {
     #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 17)]
     #[bundle]
     sprite_bundle: SpriteSheetBundle,
+    #[from_entity_instance]
+    #[bundle]
+    sensor_bundle: SensorBundle,
 }
 
 #[derive(Clone, Default, Bundle)]
@@ -71,6 +81,9 @@ pub struct SnowdriftBundle {
     #[sprite_sheet_bundle("textures/atlas.png", 16.0, 16.0, 8, 5, 0.0, 0.0, 16)]
     #[bundle]
     sprite_bundle: SpriteSheetBundle,
+    #[from_entity_instance]
+    #[bundle]
+    pub collider_bundle: ColliderBundle,
 }
 
 #[derive(Clone, Default, Bundle, LdtkEntity)]
@@ -110,6 +123,32 @@ impl From<&EntityInstance> for AnimationBundle {
     }
 }
 
+impl From<&EntityInstance> for ColliderBundle {
+    fn from(entity_instance: &EntityInstance) -> ColliderBundle {
+        match entity_instance.identifier.as_ref() {
+            "Snowdrift" => ColliderBundle {
+                collider: Collider::cuboid(TILE_SIZE, TILE_SIZE),
+                rigid_body: RigidBody::Fixed,
+            },
+            _ => ColliderBundle::default(),
+        }
+    }
+}
+
+impl From<&EntityInstance> for SensorBundle {
+    fn from(entity_instance: &EntityInstance) -> SensorBundle {
+        match entity_instance.identifier.as_ref() {
+            "Trap" => SensorBundle {
+                collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
+                sensor: Sensor,
+                rotation_constraints: LockedAxes::ROTATION_LOCKED,
+                active_events: ActiveEvents::COLLISION_EVENTS,
+            },
+            _ => SensorBundle::default(),
+        }
+    }
+}
+
 impl From<IntGridCell> for ColliderBundle {
     fn from(int_grid_cell: IntGridCell) -> ColliderBundle {
         if int_grid_cell.value == 1 {
@@ -134,6 +173,7 @@ pub fn setup_ldtk_world(mut commands: Commands, asset_server: Res<AssetServer>) 
 pub fn spawn_ldtk_entity(
     mut commands: Commands,
     entity_query: Query<(Entity, &Transform, &EntityInstance), Added<EntityInstance>>,
+    q_player: Query<(), With<Player>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     asset_server: Res<AssetServer>,
 ) {
@@ -164,9 +204,10 @@ pub fn spawn_ldtk_entity(
                 },
             });
         }
-        if entity_instance.identifier == *"Player" {
+        if entity_instance.identifier == *"Player" && q_player.is_empty() {
             let texture_handle = asset_server.load("textures/atlas.png");
-            let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
+            let texture_atlas =
+                TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
             let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
             let mut translation = transform.translation + LEVEL_TRANSLATION_OFFSET;
@@ -184,6 +225,70 @@ pub fn spawn_ldtk_entity(
                 rotation_constraints: LockedAxes::ROTATION_LOCKED,
                 velocity: Velocity::zero(),
             });
+        }
+    }
+}
+
+// 玩家死亡
+pub fn player_die(
+    mut commands: Commands,
+    mut collision_er: EventReader<CollisionEvent>,
+    q_trap: Query<Entity, With<Trap>>,
+) {
+    for event in collision_er.iter() {
+        match event {
+            CollisionEvent::Started(entity1, entity2, _flags) => {
+                info!("Player died");
+                if q_trap.contains(*entity1) {
+                    commands.entity(*entity2).despawn_recursive();
+                } else if q_trap.contains(*entity2) {
+                    commands.entity(*entity1).despawn_recursive();
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+// 玩家复活
+pub fn player_revive(
+    mut commands: Commands,
+    q_player: Query<(), With<Player>>,
+    entity_query: Query<(&Transform, &EntityInstance)>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
+) {
+    if q_player.is_empty() {
+        for (transform, entity_instance) in &entity_query {
+            if entity_instance.identifier == *"Player" {
+                let texture_handle = asset_server.load("textures/atlas.png");
+                let texture_atlas = TextureAtlas::from_grid(
+                    texture_handle,
+                    Vec2::new(8.0, 8.0),
+                    16,
+                    11,
+                    None,
+                    None,
+                );
+                let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
+                let mut translation = transform.translation + LEVEL_TRANSLATION_OFFSET;
+                translation.z = 10.0;
+                commands.spawn(PlayerBundle {
+                    player: Player,
+                    sprite_bundle: SpriteSheetBundle {
+                        sprite: TextureAtlasSprite::new(1),
+                        texture_atlas: texture_atlas_handle,
+                        transform: Transform::from_translation(translation),
+                        ..default()
+                    },
+                    collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
+                    rigid_body: RigidBody::Dynamic,
+                    rotation_constraints: LockedAxes::ROTATION_LOCKED,
+                    velocity: Velocity::zero(),
+                });
+                break;
+            }
         }
     }
 }

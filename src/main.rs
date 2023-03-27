@@ -2,15 +2,12 @@ use bevy::{prelude::*, render::texture::ImageSampler, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
-use common::{AppState, CAMERA_SCALE};
-use level::{
-    animate_balloon_rope, setup_ldtk_world, spawn_ldtk_entity, BalloonRopeBundle, ColliderBundle,
-    SnowdriftBundle, SpringBundle, TerrainBundle, TrapBundle, WoodenStand, WoodenStandBundle,
-};
-use movement::{player_move, player_jump};
 
-use crate::weather::WeatherPlugin;
-use ui::{cleanup_start_menu, enter_gaming, setup_start_menu};
+use common::*;
+use level::*;
+use movement::*;
+use ui::*;
+use weather::*;
 
 mod common;
 mod level;
@@ -43,8 +40,19 @@ fn main() {
         .add_system(cleanup_start_menu.in_schedule(OnExit(AppState::StartMenu)))
         // Gaming
         .add_system(setup_ldtk_world.in_schedule(OnEnter(AppState::Gaming)))
+        .add_system(
+            spawn_ldtk_entity
+                .in_base_set(CoreSet::PreUpdate)
+                .run_if(in_state(AppState::Gaming)),
+        )
         .add_systems(
-            (spawn_ldtk_entity, animate_balloon_rope, player_move, player_jump)
+            (
+                animate_balloon_rope,
+                player_move,
+                player_jump,
+                player_die,
+                player_revive,
+            )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
         .register_ldtk_int_cell::<TerrainBundle>(1)

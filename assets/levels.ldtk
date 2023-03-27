@@ -1555,16 +1555,16 @@
 						},
 						{
 							"__identifier": "Player",
-							"__grid": [30,31],
+							"__grid": [30,27],
 							"__pivot": [0,0],
 							"__tags": [],
 							"__tile": null,
 							"__smartColor": "#3D7FBA",
-							"iid": "df2b8320-c640-11ed-8605-4fec41d8fe04",
+							"iid": "e4864de0-c640-11ed-8605-fb0ecf5e1b0c",
 							"width": 8,
 							"height": 8,
 							"defUid": 75,
-							"px": [240,248],
+							"px": [240,216],
 							"fieldInstances": []
 						}
 					]
