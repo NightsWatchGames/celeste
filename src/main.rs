@@ -1,17 +1,20 @@
 use bevy::{prelude::*, render::texture::ImageSampler, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
-use bevy_rapier2d::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_rapier2d::prelude::*;
 use common::{AppState, CAMERA_SCALE};
-use level::{setup_ldtk_world, ColliderBundle, TerrainBundle};
+use level::{
+    setup_ldtk_world, spawn_ldtk_entity, ColliderBundle, SnowdriftBundle, SpringBundle,
+    TerrainBundle, TrapBundle, WoodenStand, WoodenStandBundle,
+};
 
 use crate::weather::WeatherPlugin;
 use ui::{cleanup_start_menu, enter_gaming, setup_start_menu};
 
 mod common;
+mod level;
 mod ui;
 mod weather;
-mod level;
 
 fn main() {
     App::new()
@@ -38,7 +41,11 @@ fn main() {
         .add_system(cleanup_start_menu.in_schedule(OnExit(AppState::StartMenu)))
         // Gaming
         .add_system(setup_ldtk_world.in_schedule(OnEnter(AppState::Gaming)))
+        .add_system(spawn_ldtk_entity.in_set(OnUpdate(AppState::Gaming)))
         .register_ldtk_int_cell::<TerrainBundle>(1)
+        .register_ldtk_entity::<SpringBundle>("Spring")
+        .register_ldtk_entity::<TrapBundle>("Trap")
+        .register_ldtk_entity::<SnowdriftBundle>("Snowdrift")
         .run();
 }
 

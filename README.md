@@ -6,7 +6,9 @@
 - [ ] 角色冲刺及动画
 - [ ] 角色爬墙
 - [ ] 角色死亡判定与重生
-- [ ] 游戏ui
+- [x] 天气效果
+- [ ] 相机跟随角色
+- [x] 游戏ui
 
 ## 参考
 - [Celeste Official source project](https://github.com/NoelFB/Celeste)
