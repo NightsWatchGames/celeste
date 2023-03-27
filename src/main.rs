@@ -2,7 +2,6 @@ use bevy::{prelude::*, render::texture::ImageSampler, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use common::AppState;
-use bevy_ecs_ldtk::prelude::*;
 
 use crate::weather::WeatherPlugin;
 use ui::{cleanup_start_menu, enter_gaming, setup_start_menu};
@@ -27,13 +26,6 @@ fn main() {
             level_background: LevelBackground::Nonexistent,
             ..Default::default()
         })
-        .add_plugin(LdtkPlugin)
-        .insert_resource(ClearColor(Color::rgb(0.56, 0.33, 0.23)))
-        .insert_resource(LevelSelection::Index(0))
-        .insert_resource(LdtkSettings { //设置背景透明
-            level_background: LevelBackground::Nonexistent,
-            ..Default::default()
-        })
         .add_startup_system(setup_camera)
         // Start Menu
         .add_system(setup_start_menu.in_schedule(OnEnter(AppState::StartMenu)))
@@ -51,15 +43,6 @@ pub fn setup_camera(mut commands: Commands) {
 }
 
 pub fn setup_ldtk_world(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(LdtkWorldBundle {
-        ldtk_handle: asset_server.load("test.ldtk"),
-        ..Default::default()
-    });
-pub fn setup_camera(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>
-) {
-    commands.spawn(Camera2dBundle::default());
     commands.spawn(LdtkWorldBundle {
         ldtk_handle: asset_server.load("test.ldtk"),
         ..Default::default()
