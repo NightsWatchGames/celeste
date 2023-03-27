@@ -16,6 +16,7 @@ fn main() {
             default_sampler: ImageSampler::nearest_descriptor(),
         }).set(WindowPlugin { //设置窗口大小 1100*750
             primary_window: Some(Window{
+                position:WindowPosition::Centered(MonitorSelection::Primary),//窗口居中
                 resolution: WindowResolution::new(1100.0,750.0),
                 ..default()
             }),
