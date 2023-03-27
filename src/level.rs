@@ -26,6 +26,10 @@ pub struct WoodenStand;
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct BalloonRope;
 
+// 玩家
+#[derive(Debug, Component, Clone, Copy, Default)]
+pub struct Player;
+
 #[derive(Clone, Debug, Default, Bundle, LdtkIntCell)]
 pub struct ColliderBundle {
     pub collider: Collider,
@@ -78,6 +82,17 @@ pub struct BalloonRopeBundle {
     #[from_entity_instance]
     #[bundle]
     animation_bundle: AnimationBundle,
+}
+
+#[derive(Clone, Default, Bundle)]
+pub struct PlayerBundle {
+    pub player: Player,
+    #[bundle]
+    sprite_bundle: SpriteSheetBundle,
+    pub collider: Collider,
+    pub rigid_body: RigidBody,
+    pub rotation_constraints: LockedAxes,
+    pub velocity: Velocity,
 }
 
 impl From<&EntityInstance> for AnimationBundle {
@@ -147,6 +162,27 @@ pub fn spawn_ldtk_entity(
                     transform: Transform::from_translation(translation),
                     ..default()
                 },
+            });
+        }
+        if entity_instance.identifier == *"Player" {
+            let texture_handle = asset_server.load("textures/atlas.png");
+            let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
+            let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
+            let mut translation = transform.translation + LEVEL_TRANSLATION_OFFSET;
+            translation.z = 10.0;
+            commands.spawn(PlayerBundle {
+                player: Player,
+                sprite_bundle: SpriteSheetBundle {
+                    sprite: TextureAtlasSprite::new(1),
+                    texture_atlas: texture_atlas_handle,
+                    transform: Transform::from_translation(translation),
+                    ..default()
+                },
+                collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
+                rigid_body: RigidBody::Dynamic,
+                rotation_constraints: LockedAxes::ROTATION_LOCKED,
+                velocity: Velocity::zero(),
             });
         }
     }

@@ -7,12 +7,14 @@ use level::{
     animate_balloon_rope, setup_ldtk_world, spawn_ldtk_entity, BalloonRopeBundle, ColliderBundle,
     SnowdriftBundle, SpringBundle, TerrainBundle, TrapBundle, WoodenStand, WoodenStandBundle,
 };
+use movement::{player_move, player_jump};
 
 use crate::weather::WeatherPlugin;
 use ui::{cleanup_start_menu, enter_gaming, setup_start_menu};
 
 mod common;
 mod level;
+mod movement;
 mod ui;
 mod weather;
 
@@ -41,7 +43,10 @@ fn main() {
         .add_system(cleanup_start_menu.in_schedule(OnExit(AppState::StartMenu)))
         // Gaming
         .add_system(setup_ldtk_world.in_schedule(OnEnter(AppState::Gaming)))
-        .add_systems((spawn_ldtk_entity, animate_balloon_rope).in_set(OnUpdate(AppState::Gaming)))
+        .add_systems(
+            (spawn_ldtk_entity, animate_balloon_rope, player_move, player_jump)
+                .in_set(OnUpdate(AppState::Gaming)),
+        )
         .register_ldtk_int_cell::<TerrainBundle>(1)
         .register_ldtk_entity::<SpringBundle>("Spring")
         .register_ldtk_entity::<TrapBundle>("Trap")
