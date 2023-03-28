@@ -19,9 +19,11 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin {
             default_sampler: ImageSampler::nearest_descriptor(),
-        }).set(WindowPlugin { //设置窗口大小 1100*750
+        }).set(WindowPlugin { //设置窗口大小 1200*800
             primary_window: Some(Window{
-                position:WindowPosition::Centered(MonitorSelection::Primary),//窗口居中
+                #[cfg(target_os = "windows")]
+                position:WindowPosition::Centered(MonitorSelection::Current),//窗口居中
+                #[cfg(target_os = "windows")]
                 resolution: WindowResolution::new(1200.0,800.0),
                 ..default()
             }),
