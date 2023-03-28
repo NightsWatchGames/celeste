@@ -17,16 +17,22 @@ mod weather;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(ImagePlugin {
-            default_sampler: ImageSampler::nearest_descriptor(),
-        }).set(WindowPlugin { //设置窗口大小 1100*750
-            primary_window: Some(Window{
-                position:WindowPosition::Centered(MonitorSelection::Primary),//窗口居中
-                resolution: WindowResolution::new(1200.0,800.0),
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin {
+                    default_sampler: ImageSampler::nearest_descriptor(),
+                })
+                .set(WindowPlugin {
+                    //设置窗口大小 1100*750
+                    primary_window: Some(Window {
+                        #[cfg(target_os = "windows")]
+                        position: WindowPosition::Centered(MonitorSelection::Primary), //窗口居中
+                        resolution: WindowResolution::new(1200.0, 800.0),
+                        ..default()
+                    }),
+                    ..default()
+                }),
+        )
         .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(RapierDebugRenderPlugin::default())
