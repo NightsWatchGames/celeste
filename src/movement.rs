@@ -27,7 +27,7 @@ pub fn player_jump(
     for mut velocity in &mut q_player {
         // 没有y轴速度，防止二段跳
         if keyboard_input.pressed(KeyCode::K) && velocity.linvel.y.abs() < 0.1 {
-            velocity.linvel = Vec2::new(0.0, 100.0);
+            velocity.linvel = Vec2::new(0.0, 800.0);
         }
     }
 }
