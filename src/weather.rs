@@ -27,7 +27,7 @@ fn spawn_weather(
         mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
         transform: Transform {
             translation: Vec3::new(0.0, 0.0, 1.0),
-            scale: Vec3::new(950., 700., 1.0),
+            scale: Vec3::new(400., 265., 1.0), //适配分辨率 0.3倍
             ..Default::default()
         },
         material: materials.add(WeatherMaterial { time: 0.0 }),

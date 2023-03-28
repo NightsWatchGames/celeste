@@ -23,7 +23,11 @@ pub fn setup_start_menu(
         SpriteSheetBundle {
             sprite: TextureAtlasSprite::new(0),
             texture_atlas: texture_atlas_handle,
-            transform: Transform::from_translation(Vec3::new(0.0, 10.0, 1.0)),
+            transform: Transform {
+                translation: Vec3::new(0.0, 1.0, 1.0),
+                scale: Vec3::new(3., 3., 1.0), //放大3倍
+                ..Default::default()
+            },
             ..default()
         },
     ));
