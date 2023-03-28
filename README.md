@@ -1,12 +1,14 @@
 # celeste 模仿蔚蓝的平台跳跃游戏
-- [ ] Aseprite软件设计像素美术
-- [ ] Ldtk软件编辑关卡
-- [ ] 加载关卡
+- [x] Aseprite软件设计像素美术
+- [x] Ldtk软件编辑关卡
+- [x] 加载关卡
 - [ ] 角色跳跃
 - [ ] 角色冲刺及动画
 - [ ] 角色爬墙
 - [ ] 角色死亡判定与重生
-- [ ] 游戏ui
+- [x] 天气效果
+- [ ] 相机跟随角色
+- [x] 游戏ui
 
 ## 参考
 - [Celeste Official source project](https://github.com/NoelFB/Celeste)

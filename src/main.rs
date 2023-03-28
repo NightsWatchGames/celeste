@@ -1,17 +1,19 @@
 use bevy::{prelude::*, render::texture::ImageSampler, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
-use bevy_rapier2d::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use common::{AppState, CAMERA_SCALE};
-use level::{setup_ldtk_world, ColliderBundle, TerrainBundle};
+use bevy_rapier2d::prelude::*;
 
-use crate::weather::WeatherPlugin;
-use ui::{cleanup_start_menu, enter_gaming, setup_start_menu};
+use common::*;
+use level::*;
+use movement::*;
+use ui::*;
+use weather::*;
 
 mod common;
+mod level;
+mod movement;
 mod ui;
 mod weather;
-mod level;
 
 fn main() {
     App::new()
@@ -45,7 +47,26 @@ fn main() {
         .add_system(cleanup_start_menu.in_schedule(OnExit(AppState::StartMenu)))
         // Gaming
         .add_system(setup_ldtk_world.in_schedule(OnEnter(AppState::Gaming)))
+        .add_system(
+            spawn_ldtk_entity
+                .in_base_set(CoreSet::PreUpdate)
+                .run_if(in_state(AppState::Gaming)),
+        )
+        .add_systems(
+            (
+                animate_balloon_rope,
+                player_move,
+                player_jump,
+                player_die,
+                player_revive,
+            )
+                .in_set(OnUpdate(AppState::Gaming)),
+        )
         .register_ldtk_int_cell::<TerrainBundle>(1)
+        .register_ldtk_entity::<SpringBundle>("Spring")
+        .register_ldtk_entity::<TrapBundle>("Trap")
+        .register_ldtk_entity::<SnowdriftBundle>("Snowdrift")
+        .register_ldtk_entity::<BalloonRopeBundle>("BalloonRope")
         .run();
 }
 
