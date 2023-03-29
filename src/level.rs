@@ -4,7 +4,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::common::{AnimationBundle, AnimationIndices, AnimationTimer, AppState, TILE_SIZE};
 
-pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -200.0, 0.0);
+pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -220.0, 0.0);
 
 // 陷阱
 #[derive(Debug, Component, Clone, Copy, Default)]
@@ -106,6 +106,7 @@ pub struct PlayerBundle {
     pub rigid_body: RigidBody,
     pub rotation_constraints: LockedAxes,
     pub velocity: Velocity,
+    pub gravity:GravityScale
 }
 
 impl From<&EntityInstance> for AnimationBundle {
@@ -224,6 +225,7 @@ pub fn spawn_ldtk_entity(
                 rigid_body: RigidBody::Dynamic,
                 rotation_constraints: LockedAxes::ROTATION_LOCKED,
                 velocity: Velocity::zero(),
+                gravity: GravityScale(70.0)
             });
         }
     }
@@ -286,6 +288,7 @@ pub fn player_revive(
                     rigid_body: RigidBody::Dynamic,
                     rotation_constraints: LockedAxes::ROTATION_LOCKED,
                     velocity: Velocity::zero(),
+                    gravity: GravityScale(70.0)
                 });
                 break;
             }
