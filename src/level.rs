@@ -296,7 +296,7 @@ fn spawn_player(
             timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             indices: AnimationIndices {
                 index: 0,
-                sprite_indices: vec![1, 2, 1, 4],
+                sprite_indices: vec![1, 2, 3, 4],
             },
         },
         facing: Facing::Right,
