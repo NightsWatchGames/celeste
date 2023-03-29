@@ -1,3 +1,5 @@
+use std::default;
+
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
@@ -29,6 +31,14 @@ pub struct BalloonRope;
 // 玩家
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Player;
+
+// 脸朝向
+#[derive(Debug, Component, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Facing {
+    Left,
+    #[default]
+    Right,
+}
 
 #[derive(Clone, Debug, Default, Bundle, LdtkIntCell)]
 pub struct ColliderBundle {
@@ -102,21 +112,24 @@ pub struct PlayerBundle {
     pub player: Player,
     #[bundle]
     sprite_bundle: SpriteSheetBundle,
+    #[bundle]
+    animation_bundle: AnimationBundle,
+    pub facing: Facing,
     pub collider: Collider,
     pub rigid_body: RigidBody,
     pub rotation_constraints: LockedAxes,
     pub velocity: Velocity,
-    pub gravity:GravityScale
+    pub gravity_scale: GravityScale,
 }
 
 impl From<&EntityInstance> for AnimationBundle {
     fn from(entity_instance: &EntityInstance) -> AnimationBundle {
         match entity_instance.identifier.as_ref() {
             "BalloonRope" => AnimationBundle {
-                timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+                timer: AnimationTimer(Timer::from_seconds(0.3, TimerMode::Repeating)),
                 indices: AnimationIndices {
-                    first: 13,
-                    last: 15,
+                    index: 0,
+                    sprite_indices: vec![13, 14, 15],
                 },
             },
             _ => AnimationBundle::default(),
@@ -206,27 +219,12 @@ pub fn spawn_ldtk_entity(
             });
         }
         if entity_instance.identifier == *"Player" && q_player.is_empty() {
-            let texture_handle = asset_server.load("textures/atlas.png");
-            let texture_atlas =
-                TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
-            let texture_atlas_handle = texture_atlases.add(texture_atlas);
-
-            let mut translation = transform.translation + LEVEL_TRANSLATION_OFFSET;
-            translation.z = 10.0;
-            commands.spawn(PlayerBundle {
-                player: Player,
-                sprite_bundle: SpriteSheetBundle {
-                    sprite: TextureAtlasSprite::new(1),
-                    texture_atlas: texture_atlas_handle,
-                    transform: Transform::from_translation(translation),
-                    ..default()
-                },
-                collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
-                rigid_body: RigidBody::Dynamic,
-                rotation_constraints: LockedAxes::ROTATION_LOCKED,
-                velocity: Velocity::zero(),
-                gravity: GravityScale(70.0)
-            });
+            spawn_player(
+                &mut commands,
+                &mut texture_atlases,
+                &asset_server,
+                (transform.translation + LEVEL_TRANSLATION_OFFSET).truncate(),
+            );
         }
     }
 }
@@ -263,37 +261,51 @@ pub fn player_revive(
     if q_player.is_empty() {
         for (transform, entity_instance) in &entity_query {
             if entity_instance.identifier == *"Player" {
-                let texture_handle = asset_server.load("textures/atlas.png");
-                let texture_atlas = TextureAtlas::from_grid(
-                    texture_handle,
-                    Vec2::new(8.0, 8.0),
-                    16,
-                    11,
-                    None,
-                    None,
+                spawn_player(
+                    &mut commands,
+                    &mut texture_atlases,
+                    &asset_server,
+                    (transform.translation + LEVEL_TRANSLATION_OFFSET).truncate(),
                 );
-                let texture_atlas_handle = texture_atlases.add(texture_atlas);
-
-                let mut translation = transform.translation + LEVEL_TRANSLATION_OFFSET;
-                translation.z = 10.0;
-                commands.spawn(PlayerBundle {
-                    player: Player,
-                    sprite_bundle: SpriteSheetBundle {
-                        sprite: TextureAtlasSprite::new(1),
-                        texture_atlas: texture_atlas_handle,
-                        transform: Transform::from_translation(translation),
-                        ..default()
-                    },
-                    collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
-                    rigid_body: RigidBody::Dynamic,
-                    rotation_constraints: LockedAxes::ROTATION_LOCKED,
-                    velocity: Velocity::zero(),
-                    gravity: GravityScale(70.0)
-                });
                 break;
             }
         }
     }
+}
+
+fn spawn_player(
+    commands: &mut Commands,
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    asset_server: &Res<AssetServer>,
+    player_pos: Vec2,
+) {
+    let texture_handle = asset_server.load("textures/atlas.png");
+    let texture_atlas =
+        TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
+    commands.spawn(PlayerBundle {
+        player: Player,
+        sprite_bundle: SpriteSheetBundle {
+            sprite: TextureAtlasSprite::new(1),
+            texture_atlas: texture_atlas_handle,
+            transform: Transform::from_translation(player_pos.extend(10.0)),
+            ..default()
+        },
+        animation_bundle: AnimationBundle {
+            timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+            indices: AnimationIndices {
+                index: 0,
+                sprite_indices: vec![1, 2, 1, 4],
+            },
+        },
+        facing: Facing::Right,
+        collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
+        rigid_body: RigidBody::Dynamic,
+        rotation_constraints: LockedAxes::ROTATION_LOCKED,
+        velocity: Velocity::zero(),
+        gravity_scale: GravityScale(10.0),
+    });
 }
 
 pub fn animate_balloon_rope(
@@ -301,20 +313,22 @@ pub fn animate_balloon_rope(
     mut query: Query<
         (
             &mut AnimationTimer,
-            &AnimationIndices,
+            &mut AnimationIndices,
             &mut TextureAtlasSprite,
         ),
         With<BalloonRope>,
     >,
 ) {
-    for (mut timer, indices, mut sprite) in &mut query {
+    for (mut timer, mut indices, mut sprite) in &mut query {
         timer.0.tick(time.delta());
         if timer.0.just_finished() {
             // 切换到下一个sprite
-            sprite.index = if sprite.index == indices.last {
-                indices.first
+            sprite.index = if indices.index == indices.sprite_indices.len() - 1 {
+                indices.index = 0;
+                indices.sprite_indices[indices.index]
             } else {
-                sprite.index + 1
+                indices.index += 1;
+                indices.sprite_indices[indices.index]
             };
         }
     }

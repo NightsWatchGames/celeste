@@ -20,6 +20,7 @@ fn main() {
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin {
+                    // 像素画放大后仍保证清晰
                     default_sampler: ImageSampler::nearest_descriptor(),
                 })
                 .set(WindowPlugin {
@@ -61,10 +62,11 @@ fn main() {
         .add_systems(
             (
                 animate_balloon_rope,
-                player_move,
+                player_run,
                 player_jump,
                 player_die,
                 player_revive,
+                animate_run,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
