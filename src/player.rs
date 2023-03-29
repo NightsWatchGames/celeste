@@ -1,10 +1,90 @@
 use bevy::prelude::*;
+use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    common::{AnimationIndices, AnimationTimer},
-    level::{Facing, Player},
+    common::{AnimationBundle, AnimationIndices, AnimationTimer, TILE_SIZE},
+    level::{Facing, Player, PlayerBundle, Trap, LEVEL_TRANSLATION_OFFSET},
 };
+
+// 玩家死亡
+pub fn player_die(
+    mut commands: Commands,
+    mut collision_er: EventReader<CollisionEvent>,
+    q_trap: Query<Entity, With<Trap>>,
+) {
+    for event in collision_er.iter() {
+        match event {
+            CollisionEvent::Started(entity1, entity2, _flags) => {
+                info!("Player died");
+                if q_trap.contains(*entity1) {
+                    commands.entity(*entity2).despawn_recursive();
+                } else if q_trap.contains(*entity2) {
+                    commands.entity(*entity1).despawn_recursive();
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+// 玩家复活
+pub fn player_revive(
+    mut commands: Commands,
+    q_player: Query<(), With<Player>>,
+    entity_query: Query<(&Transform, &EntityInstance)>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
+) {
+    if q_player.is_empty() {
+        for (transform, entity_instance) in &entity_query {
+            if entity_instance.identifier == *"Player" {
+                spawn_player(
+                    &mut commands,
+                    &mut texture_atlases,
+                    &asset_server,
+                    (transform.translation + LEVEL_TRANSLATION_OFFSET).truncate(),
+                );
+                break;
+            }
+        }
+    }
+}
+
+pub fn spawn_player(
+    commands: &mut Commands,
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    asset_server: &Res<AssetServer>,
+    player_pos: Vec2,
+) {
+    let texture_handle = asset_server.load("textures/atlas.png");
+    let texture_atlas =
+        TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
+    commands.spawn(PlayerBundle {
+        player: Player,
+        sprite_bundle: SpriteSheetBundle {
+            sprite: TextureAtlasSprite::new(1),
+            texture_atlas: texture_atlas_handle,
+            transform: Transform::from_translation(player_pos.extend(10.0)),
+            ..default()
+        },
+        animation_bundle: AnimationBundle {
+            timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+            indices: AnimationIndices {
+                index: 0,
+                sprite_indices: vec![1, 2, 3, 4],
+            },
+        },
+        facing: Facing::Right,
+        collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
+        rigid_body: RigidBody::Dynamic,
+        rotation_constraints: LockedAxes::ROTATION_LOCKED,
+        velocity: Velocity::zero(),
+        gravity_scale: GravityScale(10.0),
+    });
+}
 
 // 角色奔跑
 pub fn player_run(

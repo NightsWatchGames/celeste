@@ -5,13 +5,13 @@ use bevy_rapier2d::prelude::*;
 
 use common::*;
 use level::*;
-use movement::*;
+use player::*;
 use ui::*;
 use weather::*;
 
 mod common;
 mod level;
-mod movement;
+mod player;
 mod ui;
 mod weather;
 
