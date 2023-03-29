@@ -16,10 +16,11 @@ pub fn player_die(
     for event in collision_er.iter() {
         match event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
-                info!("Player died");
                 if q_trap.contains(*entity1) {
+                    info!("Player died");
                     commands.entity(*entity2).despawn_recursive();
                 } else if q_trap.contains(*entity2) {
+                    info!("Player died");
                     commands.entity(*entity1).despawn_recursive();
                 }
             }

@@ -47,6 +47,7 @@ fn main() {
             level_background: LevelBackground::Nonexistent,
             ..Default::default()
         })
+        .add_event::<SpringUpEvent>()
         .add_startup_system(setup_camera)
         // Start Menu
         .add_system(setup_start_menu.in_schedule(OnEnter(AppState::StartMenu)))
@@ -62,15 +63,17 @@ fn main() {
         )
         .add_systems(
             (
-                animate_balloon_rope,
                 player_run,
                 player_jump,
                 player_dash,
                 player_die,
                 player_revive,
+                spring_up,
                 animate_run,
                 animate_jump,
                 animate_stand,
+                aninmate_spring,
+                animate_balloon_rope,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
