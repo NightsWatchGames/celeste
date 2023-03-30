@@ -1,33 +1,29 @@
-use std::default;
-
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::common::{AnimationBundle, AnimationIndices, AnimationTimer, AppState, TILE_SIZE};
+use crate::{
+    common::{AnimationBundle, AnimationIndices, AnimationTimer, AppState, TILE_SIZE},
+    player::spawn_player,
+};
 
 pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -220.0, 0.0);
 
 // 陷阱
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Trap;
-
 // 弹簧
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Spring;
-
 // 雪堆
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Snowdrift;
-
 // 木架
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct WoodenStand;
-
 // 气球绳
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct BalloonRope;
-
 // 玩家
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Player;
@@ -38,6 +34,11 @@ pub enum Facing {
     Left,
     #[default]
     Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpringUpEvent {
+    entity: Entity,
 }
 
 #[derive(Clone, Debug, Default, Bundle, LdtkIntCell)]
@@ -66,6 +67,12 @@ pub struct SpringBundle {
     #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 19)]
     #[bundle]
     sprite_bundle: SpriteSheetBundle,
+    #[from_entity_instance]
+    #[bundle]
+    sensor_bundle: SensorBundle,
+    #[from_entity_instance]
+    #[bundle]
+    animation_bundle: AnimationBundle,
 }
 
 #[derive(Clone, Default, Bundle, LdtkEntity)]
@@ -111,9 +118,9 @@ pub struct BalloonRopeBundle {
 pub struct PlayerBundle {
     pub player: Player,
     #[bundle]
-    sprite_bundle: SpriteSheetBundle,
+    pub sprite_bundle: SpriteSheetBundle,
     #[bundle]
-    animation_bundle: AnimationBundle,
+    pub animation_bundle: AnimationBundle,
     pub facing: Facing,
     pub collider: Collider,
     pub rigid_body: RigidBody,
@@ -130,6 +137,13 @@ impl From<&EntityInstance> for AnimationBundle {
                 indices: AnimationIndices {
                     index: 0,
                     sprite_indices: vec![13, 14, 15],
+                },
+            },
+            "Spring" => AnimationBundle {
+                timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Once)),
+                indices: AnimationIndices {
+                    index: 0,
+                    sprite_indices: vec![19, 18],
                 },
             },
             _ => AnimationBundle::default(),
@@ -152,7 +166,7 @@ impl From<&EntityInstance> for ColliderBundle {
 impl From<&EntityInstance> for SensorBundle {
     fn from(entity_instance: &EntityInstance) -> SensorBundle {
         match entity_instance.identifier.as_ref() {
-            "Trap" => SensorBundle {
+            "Trap" | "Spring" => SensorBundle {
                 collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
                 sensor: Sensor,
                 rotation_constraints: LockedAxes::ROTATION_LOCKED,
@@ -229,85 +243,37 @@ pub fn spawn_ldtk_entity(
     }
 }
 
-// 玩家死亡
-pub fn player_die(
-    mut commands: Commands,
+// 弹簧弹起
+pub fn spring_up(
     mut collision_er: EventReader<CollisionEvent>,
-    q_trap: Query<Entity, With<Trap>>,
+    q_spring: Query<Entity, With<Spring>>,
+    mut q_player: Query<&mut Velocity, With<Player>>,
+    mut spring_up_ew: EventWriter<SpringUpEvent>,
 ) {
     for event in collision_er.iter() {
         match event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
-                info!("Player died");
-                if q_trap.contains(*entity1) {
-                    commands.entity(*entity2).despawn_recursive();
-                } else if q_trap.contains(*entity2) {
-                    commands.entity(*entity1).despawn_recursive();
+                let spring_entity = if q_spring.contains(*entity1) {
+                    *entity1
+                } else if q_spring.contains(*entity2) {
+                    *entity2
+                } else {
+                    continue;
+                };
+                info!("Spring up");
+                for mut velocity in &mut q_player {
+                    velocity.linvel.y = 300.0;
                 }
+                spring_up_ew.send(SpringUpEvent {
+                    entity: spring_entity,
+                });
             }
             _ => {}
         }
     }
 }
 
-// 玩家复活
-pub fn player_revive(
-    mut commands: Commands,
-    q_player: Query<(), With<Player>>,
-    entity_query: Query<(&Transform, &EntityInstance)>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    asset_server: Res<AssetServer>,
-) {
-    if q_player.is_empty() {
-        for (transform, entity_instance) in &entity_query {
-            if entity_instance.identifier == *"Player" {
-                spawn_player(
-                    &mut commands,
-                    &mut texture_atlases,
-                    &asset_server,
-                    (transform.translation + LEVEL_TRANSLATION_OFFSET).truncate(),
-                );
-                break;
-            }
-        }
-    }
-}
-
-fn spawn_player(
-    commands: &mut Commands,
-    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
-    asset_server: &Res<AssetServer>,
-    player_pos: Vec2,
-) {
-    let texture_handle = asset_server.load("textures/atlas.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-
-    commands.spawn(PlayerBundle {
-        player: Player,
-        sprite_bundle: SpriteSheetBundle {
-            sprite: TextureAtlasSprite::new(1),
-            texture_atlas: texture_atlas_handle,
-            transform: Transform::from_translation(player_pos.extend(10.0)),
-            ..default()
-        },
-        animation_bundle: AnimationBundle {
-            timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-            indices: AnimationIndices {
-                index: 0,
-                sprite_indices: vec![1, 2, 1, 4],
-            },
-        },
-        facing: Facing::Right,
-        collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
-        rigid_body: RigidBody::Dynamic,
-        rotation_constraints: LockedAxes::ROTATION_LOCKED,
-        velocity: Velocity::zero(),
-        gravity_scale: GravityScale(10.0),
-    });
-}
-
+// 气球绳动画
 pub fn animate_balloon_rope(
     time: Res<Time>,
     mut query: Query<
@@ -330,6 +296,37 @@ pub fn animate_balloon_rope(
                 indices.index += 1;
                 indices.sprite_indices[indices.index]
             };
+        }
+    }
+}
+
+// 弹簧弹起动画
+pub fn aninmate_spring(
+    mut spring_up_er: EventReader<SpringUpEvent>,
+    mut q_spring: Query<
+        (
+            Entity,
+            &mut AnimationTimer,
+            &AnimationIndices,
+            &mut TextureAtlasSprite,
+        ),
+        With<Spring>,
+    >,
+    time: Res<Time>,
+) {
+    for spring_up_event in spring_up_er.iter() {
+        info!("Received spring up event: {:?}", spring_up_event);
+        for (entity, mut timer, indices, mut sprite) in &mut q_spring {
+            if spring_up_event.entity == entity {
+                timer.0.reset();
+                sprite.index = *indices.sprite_indices.last().unwrap();
+            }
+        }
+    }
+    for (_, mut timer, indices, mut sprite) in &mut q_spring {
+        timer.0.tick(time.delta());
+        if timer.0.finished() {
+            sprite.index = *indices.sprite_indices.first().unwrap();
         }
     }
 }

@@ -15,3 +15,6 @@
 - [U3D教程实现《蔚蓝 Celeste 》Movement 系统](https://www.bilibili.com/video/BV1D4411d7Xn)
 - [casuak/Game_1_Tiny_Celeste_v3](https://github.com/casuak/Game_1_Tiny_Celeste_v3)
 - [LDtk一小时完全入门教程](https://www.bilibili.com/video/BV1y64y1z7Uw)
+
+## 问题
+**1.像素完美是什么意思？**
