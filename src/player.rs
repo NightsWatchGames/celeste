@@ -79,7 +79,7 @@ pub fn spawn_player(
             },
         },
         facing: Facing::Right,
-        collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
+        collider: Collider::ball(TILE_SIZE / 2.0),
         rigid_body: RigidBody::Dynamic,
         rotation_constraints: LockedAxes::ROTATION_LOCKED,
         velocity: Velocity::zero(),
