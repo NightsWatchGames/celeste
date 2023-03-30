@@ -87,6 +87,33 @@ pub fn spawn_player(
     });
 }
 
+//模拟重力
+pub fn update_gravity(
+    mut controllers: Query<&mut KinematicCharacterController>,
+    contro: Query<&KinematicCharacterControllerOutput>
+) {
+    //先给一个初始的向下矢量
+    for mut controller in controllers.iter_mut() {
+        controller.translation = Some(Vec2::new(0.0, -0.5));
+    }
+    for mut controller in controllers.iter_mut() {
+        
+        for output in contro.iter() {
+            if output.grounded == false {
+                println!("Entity moved by {:?} and touches the ground: {:?}",
+                output.effective_translation, output.grounded);
+                let mut y = output.effective_translation.y;
+                y = y - 1.5; //矢量值越来越大  模拟掉落速度越来越快
+                controller.translation = Some(Vec2::new(0.0, y));
+            }
+
+        }
+    }
+ 
+}
+
+
+
 // 角色奔跑
 pub fn player_run(
     keyboard_input: Res<Input<KeyCode>>,
