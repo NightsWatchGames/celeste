@@ -55,7 +55,6 @@ fn main() {
         .add_system(cleanup_start_menu.in_schedule(OnExit(AppState::StartMenu)))
         // Gaming
         .add_system(setup_ldtk_world.in_schedule(OnEnter(AppState::Gaming)))
-        .add_system(setup_test_platform.in_schedule(OnEnter(AppState::Gaming)))
         .add_system(
             spawn_ldtk_entity
                 .in_base_set(CoreSet::PreUpdate)
@@ -89,22 +88,4 @@ pub fn setup_camera(mut commands: Commands) {
     let mut camera2d_bundle = Camera2dBundle::default();
     camera2d_bundle.projection.scale = CAMERA_SCALE;
     commands.spawn(camera2d_bundle);
-}
-
-pub fn setup_test_platform(mut commands: Commands) {
-    commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::ALICE_BLUE,
-                ..default()
-            },
-            transform: Transform {
-                translation: Vec3::new(80.0, 50.0, 0.0),
-                ..default()
-            },
-            ..default()
-        },
-        Collider::cuboid(50.0, 3.0),
-        RigidBody::Fixed,
-    ));
 }
