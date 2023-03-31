@@ -66,13 +66,16 @@ fn main() {
                 player_jump,
                 player_dash,
                 player_die,
+                despawn_hair.after(player_die),
                 player_revive,
+                spawn_hair.after(player_revive),
                 spring_up,
                 animate_run,
                 animate_jump,
                 animate_stand,
                 aninmate_spring,
                 animate_balloon_rope,
+                animate_hair,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )

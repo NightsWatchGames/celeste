@@ -1,11 +1,20 @@
+use std::collections::VecDeque;
+
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    common::{AnimationBundle, AnimationIndices, AnimationTimer, TILE_SIZE},
+    common::{
+        AnimationBundle, AnimationIndices, AnimationTimer, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER,
+        TILE_SIZE,
+    },
     level::{Facing, Player, PlayerBundle, Trap, LEVEL_TRANSLATION_OFFSET},
 };
+
+// 角色头发
+#[derive(Debug, Component, Clone, Copy, Default)]
+pub struct Hair;
 
 // 玩家死亡
 pub fn player_die(
@@ -68,7 +77,7 @@ pub fn spawn_player(
         sprite_bundle: SpriteSheetBundle {
             sprite: TextureAtlasSprite::new(1),
             texture_atlas: texture_atlas_handle,
-            transform: Transform::from_translation(player_pos.extend(10.0)),
+            transform: Transform::from_translation(player_pos.extend(SPRITE_PLAYER_ORDER)),
             ..default()
         },
         animation_bundle: AnimationBundle {
@@ -203,6 +212,109 @@ pub fn animate_stand(
             } else {
                 sprite.flip_x = false;
             }
+        }
+    }
+}
+
+// 创建角色头发
+pub fn spawn_hair(
+    mut commands: Commands,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
+    q_hair: Query<(), With<Hair>>,
+    q_player: Query<&Transform, With<Player>>,
+) {
+    if !q_player.is_empty() && q_hair.is_empty() {
+        let columns = 6;
+        let texture_handle = asset_server.load("textures/hair.png");
+        let texture_atlas = TextureAtlas::from_grid(
+            texture_handle,
+            Vec2::new(8.0, 8.0),
+            columns,
+            1,
+            Some(Vec2::new(1.0, 1.0)),
+            Some(Vec2::new(1.0, 1.0)),
+        );
+        let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
+        for player_transfrom in &q_player {
+            for i in 0..columns {
+                commands.spawn((
+                    Hair,
+                    SpriteSheetBundle {
+                        sprite: TextureAtlasSprite {
+                            index: i,
+                            color: Color::RED,
+                            ..default()
+                        },
+                        texture_atlas: texture_atlas_handle.clone(),
+                        transform: Transform::from_translation(
+                            player_transfrom
+                                .translation
+                                .truncate()
+                                .extend(SPRITE_HAIR_ORDER),
+                        ),
+                        ..default()
+                    },
+                ));
+            }
+        }
+    }
+}
+
+pub fn despawn_hair(
+    mut commands: Commands,
+    q_hair: Query<Entity, With<Hair>>,
+    q_player: Query<&Transform, With<Player>>,
+) {
+    if q_player.is_empty() && !q_hair.is_empty() {
+        for entity in &q_hair {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub fn animate_hair(
+    mut q_hair: Query<(&mut Transform, &mut TextureAtlasSprite), (With<Hair>, Without<Player>)>,
+    q_player: Query<(&Transform, &Facing), With<Player>>,
+    mut hair_flow: Local<VecDeque<Vec2>>,
+) {
+    if q_player.is_empty() || q_hair.is_empty() {
+        return;
+    }
+    // hair_flow记录最近5帧player位置
+    hair_flow.push_front(q_player.single().0.translation.truncate());
+    if hair_flow.len() > 5 {
+        hair_flow.pop_back();
+    }
+
+    // 头发排序
+    let mut hair: Vec<(Mut<Transform>, Mut<TextureAtlasSprite>)> = q_hair.iter_mut().collect();
+    hair.sort_by(|single_hair1, single_hair2| single_hair1.1.index.cmp(&single_hair2.1.index));
+
+    // 依次往每个bucket（hair_flow槽）里放，直至放满，多余hair放到最后的bucket
+    let bucket_size = hair.iter().len() / hair_flow.len();
+    let mut bucket_index = 0;
+    let mut count = 0;
+    for single_hair in hair.iter_mut() {
+        single_hair.0.translation = hair_flow
+            .get(bucket_index)
+            .unwrap()
+            .extend(SPRITE_HAIR_ORDER);
+        single_hair.1.flip_x = if *q_player.single().1 == Facing::Left {
+            true
+        } else {
+            false
+        };
+        count += 1;
+        if count > bucket_size {
+            // 下一个bucket
+            bucket_index = if bucket_index < hair_flow.len() - 1 {
+                bucket_index + 1
+            } else {
+                bucket_index
+            };
+            count = 0;
         }
     }
 }
