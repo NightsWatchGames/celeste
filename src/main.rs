@@ -16,30 +16,35 @@ mod ui;
 mod weather;
 
 fn main() {
-    App::new()
-        .add_plugins(
-            DefaultPlugins
-                .set(ImagePlugin {
-                    // 像素画放大后仍保证清晰
-                    default_sampler: ImageSampler::nearest_descriptor(),
-                })
-                .set(WindowPlugin {
-                    //设置窗口大小 1100*750
-                    primary_window: Some(Window {
-                        #[cfg(target_os = "windows")]
-                        position: WindowPosition::Centered(MonitorSelection::Primary), //窗口居中
-                        resolution: WindowResolution::new(1200.0, 800.0),
-                        ..default()
-                    }),
+    let mut app = App::new();
+    app.add_plugins(
+        DefaultPlugins
+            .set(ImagePlugin {
+                // 像素画放大后仍保证清晰
+                default_sampler: ImageSampler::nearest_descriptor(),
+            })
+            .set(WindowPlugin {
+                //设置窗口大小 1100*750
+                primary_window: Some(Window {
+                    #[cfg(target_os = "windows")]
+                    position: WindowPosition::Centered(MonitorSelection::Primary), //窗口居中
+                    resolution: WindowResolution::new(1200.0, 800.0),
                     ..default()
                 }),
-        )
-        .add_plugin(WorldInspectorPlugin::new())
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
-        .add_plugin(RapierDebugRenderPlugin::default())
-        .add_plugin(WeatherPlugin)
-        .add_plugin(LdtkPlugin)
-        .add_state::<AppState>()
+                ..default()
+            }),
+    )
+    .add_plugin(WorldInspectorPlugin::new())
+    .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
+    .add_plugin(RapierDebugRenderPlugin::default())
+    .add_plugin(LdtkPlugin);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        app.add_plugin(WeatherPlugin);
+    }
+
+    app.add_state::<AppState>()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(LevelSelection::Index(0))
         .insert_resource(LdtkSettings {
