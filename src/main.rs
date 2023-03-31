@@ -76,6 +76,7 @@ fn main() {
                 aninmate_spring,
                 animate_balloon_rope,
                 animate_hair,
+                animate_dust,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )

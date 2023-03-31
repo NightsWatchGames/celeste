@@ -6,8 +6,8 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     common::{
-        AnimationBundle, AnimationIndices, AnimationTimer, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER,
-        TILE_SIZE,
+        AnimationBundle, AnimationIndices, AnimationTimer, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER,
+        SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
     level::{Facing, Player, PlayerBundle, Trap, LEVEL_TRANSLATION_OFFSET},
 };
@@ -15,6 +15,10 @@ use crate::{
 // 角色头发
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Hair;
+
+// 灰尘
+#[derive(Debug, Component, Clone, Copy, Default)]
+pub struct Dust;
 
 // 玩家死亡
 pub fn player_die(
@@ -130,16 +134,34 @@ pub fn player_jump(
 
 // 角色冲刺/冲撞
 pub fn player_dash(
+    mut commands: Commands,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<(&mut Velocity, &Facing), With<Player>>,
+    mut q_player: Query<(&mut Velocity, &Facing, &Transform), With<Player>>,
+    mut spawn_dust_cd: Local<f32>,
+    time: Res<Time>,
 ) {
-    for (mut velocity, facing) in &mut q_player {
+    for (mut velocity, facing, transform) in &mut q_player {
         if keyboard_input.pressed(KeyCode::J) {
             if *facing == Facing::Left {
-                velocity.linvel = Vec2::new(-100.0, 0.0);
+                velocity.linvel = Vec2::new(-200.0, 0.0);
             }
             if *facing == Facing::Right {
-                velocity.linvel = Vec2::new(100.0, 0.0);
+                velocity.linvel = Vec2::new(200.0, 0.0);
+            }
+
+            if *spawn_dust_cd > 0.0 {
+                *spawn_dust_cd -= time.delta_seconds();
+            } else {
+                spawn_dust(
+                    &mut commands,
+                    &mut texture_atlases,
+                    &asset_server,
+                    transform.translation.truncate(),
+                );
+                // 重置cd
+                *spawn_dust_cd = 0.02;
             }
         }
     }
@@ -315,6 +337,60 @@ pub fn animate_hair(
                 bucket_index
             };
             count = 0;
+        }
+    }
+}
+
+pub fn spawn_dust(
+    commands: &mut Commands,
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    asset_server: &Res<AssetServer>,
+    dust_pos: Vec2,
+) {
+    let texture_handle = asset_server.load("textures/atlas.png");
+    let texture_atlas =
+        TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
+    commands.spawn((
+        Dust,
+        SpriteSheetBundle {
+            sprite: TextureAtlasSprite::new(29),
+            texture_atlas: texture_atlas_handle,
+            transform: Transform::from_translation(dust_pos.extend(SPRITE_DUST_ORDER)),
+            ..default()
+        },
+        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+        AnimationIndices {
+            index: 0,
+            sprite_indices: vec![29, 30, 31],
+        },
+    ));
+}
+
+pub fn animate_dust(
+    mut commands: Commands,
+    mut q_dust: Query<
+        (
+            Entity,
+            &mut AnimationTimer,
+            &mut AnimationIndices,
+            &mut TextureAtlasSprite,
+        ),
+        With<Dust>,
+    >,
+    time: Res<Time>,
+) {
+    for (entity, mut timer, mut indices, mut sprite) in &mut q_dust {
+        timer.0.tick(time.delta());
+        if timer.0.just_finished() {
+            // 切换到下一个sprite
+            if indices.index == indices.sprite_indices.len() - 1 {
+                commands.entity(entity).despawn();
+            } else {
+                indices.index += 1;
+                sprite.index = indices.sprite_indices[indices.index];
+            };
         }
     }
 }
