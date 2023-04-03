@@ -11,6 +11,24 @@
 - [x] 天气效果
 - [ ] 相机跟随角色
 - [x] 游戏ui
+- [ ] WASM支持
+
+## 运行
+1. 本地运行
+```
+cargo run
+```
+2. WASM运行
+```
+rustup target install wasm32-unknown-unknown
+cargo install wasm-server-runner
+cargo run --target wasm32-unknown-unknown
+```
+```
+cargo install wasm-bindgen-cli
+cargo build --release --target wasm32-unknown-unknown
+wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/celeste.wasm
+```
 
 ## 参考
 - [Celeste Official source project](https://github.com/NoelFB/Celeste)

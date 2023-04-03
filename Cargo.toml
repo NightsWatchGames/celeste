@@ -9,7 +9,4 @@ edition = "2021"
 bevy = "0.10"
 bevy_rapier2d = "0.21.0"
 bevy-inspector-egui = "0.18.1"
-bevy_ecs_ldtk = { git = "https://github.com/Trouv/bevy_ecs_ldtk", branch = "main" }
-
-[patch.crates-io]
-bevy_ecs_tilemap = { git = "https://github.com/geieredgar/bevy_ecs_tilemap", branch = "bevy_track" }
+bevy_ecs_ldtk = "0.6"
