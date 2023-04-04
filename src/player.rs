@@ -5,6 +5,7 @@ use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
+    camera::CameraShakeEvent,
     common::{
         AnimationBundle, AnimationIndices, AnimationTimer, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER,
         SPRITE_PLAYER_ORDER, TILE_SIZE,
@@ -23,8 +24,12 @@ pub struct Dust;
 // 玩家死亡
 pub fn player_die(
     mut commands: Commands,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
     mut collision_er: EventReader<CollisionEvent>,
+    mut camera_shake_ew: EventWriter<CameraShakeEvent>,
     q_trap: Query<Entity, With<Trap>>,
+    q_player: Query<&Transform, With<Player>>,
 ) {
     for event in collision_er.iter() {
         match event {
@@ -32,9 +37,23 @@ pub fn player_die(
                 if q_trap.contains(*entity1) {
                     info!("Player died");
                     commands.entity(*entity2).despawn_recursive();
+                    spawn_dust(
+                        &mut commands,
+                        &mut texture_atlases,
+                        &asset_server,
+                        q_player.single().translation.truncate(),
+                    );
+                    camera_shake_ew.send_default();
                 } else if q_trap.contains(*entity2) {
                     info!("Player died");
                     commands.entity(*entity1).despawn_recursive();
+                    spawn_dust(
+                        &mut commands,
+                        &mut texture_atlases,
+                        &asset_server,
+                        q_player.single().translation.truncate(),
+                    );
+                    camera_shake_ew.send_default();
                 }
             }
             _ => {}

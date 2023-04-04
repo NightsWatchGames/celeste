@@ -62,6 +62,7 @@ fn main() {
             ..Default::default()
         })
         .add_event::<SpringUpEvent>()
+        .add_event::<CameraShakeEvent>()
         .add_startup_system(setup_camera)
         // Start Menu
         .add_system(setup_start_menu.in_schedule(OnEnter(AppState::StartMenu)))
@@ -92,6 +93,7 @@ fn main() {
                 animate_hair,
                 animate_dust,
                 camera_follow,
+                camera_shake,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
