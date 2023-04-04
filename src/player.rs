@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, default};
 
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
@@ -8,7 +8,7 @@ use crate::{
     camera::CameraShakeEvent,
     common::{
         AnimationBundle, AnimationIndices, AnimationTimer, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER,
-        SPRITE_PLAYER_ORDER, TILE_SIZE,
+        SPRITE_PLAYER_ORDER, TILE_SIZE, PLAYER_GRAVITY_SCALE, PLAYER_DASHING_COLOR,
     },
     level::{Facing, Player, PlayerBundle, Trap, LEVEL_TRANSLATION_OFFSET},
 };
@@ -20,6 +20,15 @@ pub struct Hair;
 // 灰尘
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Dust;
+
+#[derive(Debug, Resource, Clone, Copy, Default)]
+pub enum PlayerState {
+    #[default]
+    Runing,
+    Dashing,
+    Jumping,
+    Climbing,
+}
 
 // 玩家死亡
 pub fn player_die(
@@ -42,6 +51,7 @@ pub fn player_die(
                         &mut texture_atlases,
                         &asset_server,
                         q_player.single().translation.truncate(),
+                        Color::default(),
                     );
                     camera_shake_ew.send_default();
                 } else if q_trap.contains(*entity2) {
@@ -52,6 +62,7 @@ pub fn player_die(
                         &mut texture_atlases,
                         &asset_server,
                         q_player.single().translation.truncate(),
+                        Color::default(),
                     );
                     camera_shake_ew.send_default();
                 }
@@ -115,7 +126,7 @@ pub fn spawn_player(
         rigid_body: RigidBody::Dynamic,
         rotation_constraints: LockedAxes::ROTATION_LOCKED,
         velocity: Velocity::zero(),
-        gravity_scale: GravityScale(10.0),
+        gravity_scale: GravityScale(PLAYER_GRAVITY_SCALE),
     });
 }
 
@@ -157,31 +168,53 @@ pub fn player_dash(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<(&mut Velocity, &Facing, &Transform), With<Player>>,
+    mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
+    mut q_hair: Query<&mut TextureAtlasSprite, With<Hair>>,
     mut spawn_dust_cd: Local<f32>,
+    mut dash_timer: Local<f32>,
     time: Res<Time>,
 ) {
-    for (mut velocity, facing, transform) in &mut q_player {
-        if keyboard_input.pressed(KeyCode::J) {
-            if *facing == Facing::Left {
-                velocity.linvel = Vec2::new(-200.0, 0.0);
-            }
-            if *facing == Facing::Right {
-                velocity.linvel = Vec2::new(200.0, 0.0);
-            }
+    if q_player.is_empty() {
+        return;
+    }
+    if keyboard_input.just_pressed(KeyCode::J) && *dash_timer <= 0.0 {
+        *dash_timer = 0.2;
+    }
 
-            if *spawn_dust_cd > 0.0 {
-                *spawn_dust_cd -= time.delta_seconds();
-            } else {
-                spawn_dust(
-                    &mut commands,
-                    &mut texture_atlases,
-                    &asset_server,
-                    transform.translation.truncate(),
-                );
-                // 重置cd
-                *spawn_dust_cd = 0.02;
-            }
+    let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
+    if *dash_timer > 0.0 {
+        *dash_timer -= time.delta_seconds();
+        if *facing == Facing::Left {
+            velocity.linvel = Vec2::new(-200.0, 0.0);
+        } else if *facing == Facing::Right {
+            velocity.linvel = Vec2::new(200.0, 0.0);
+        }
+        // 重力为0
+        gravity_scale.0 = 0.0;
+        // 头发变色
+        for mut single_hair in &mut q_hair {
+            single_hair.color = PLAYER_DASHING_COLOR;
+        }
+        // TODO 人物变色
+
+        if *spawn_dust_cd > 0.0 {
+            *spawn_dust_cd -= time.delta_seconds();
+        } else {
+            spawn_dust(
+                &mut commands,
+                &mut texture_atlases,
+                &asset_server,
+                transform.translation.truncate(),
+                PLAYER_DASHING_COLOR,
+            );
+            // 重置cd
+            *spawn_dust_cd = 0.02;
+        }
+    } else {
+        // 冲刺完毕
+        gravity_scale.0 = PLAYER_GRAVITY_SCALE;
+        for mut single_hair in &mut q_hair {
+            single_hair.color = Color::RED;
         }
     }
 }
@@ -365,6 +398,7 @@ pub fn spawn_dust(
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     asset_server: &Res<AssetServer>,
     dust_pos: Vec2,
+    dust_color: Color,
 ) {
     let texture_handle = asset_server.load("textures/atlas.png");
     let texture_atlas =
@@ -374,7 +408,11 @@ pub fn spawn_dust(
     commands.spawn((
         Dust,
         SpriteSheetBundle {
-            sprite: TextureAtlasSprite::new(29),
+            sprite: TextureAtlasSprite {
+                index: 29,
+                color: dust_color,
+                ..default()
+            },
             texture_atlas: texture_atlas_handle,
             transform: Transform::from_translation(dust_pos.extend(SPRITE_DUST_ORDER)),
             ..default()

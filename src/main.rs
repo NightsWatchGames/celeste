@@ -61,6 +61,7 @@ fn main() {
             level_background: LevelBackground::Nonexistent,
             ..Default::default()
         })
+        .insert_resource(PlayerState::Runing)
         .add_event::<SpringUpEvent>()
         .add_event::<CameraShakeEvent>()
         .add_startup_system(setup_camera)
