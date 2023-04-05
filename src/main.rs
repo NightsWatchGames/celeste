@@ -62,6 +62,7 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(PlayerState::Runing)
+        .insert_resource(CameraState::Following)
         .add_event::<SpringUpEvent>()
         .add_event::<CameraShakeEvent>()
         .add_startup_system(setup_camera)

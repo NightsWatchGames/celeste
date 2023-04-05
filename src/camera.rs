@@ -11,6 +11,13 @@ const CAMERA_MOVE_INTERPOLATE: f32 = 0.05;
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct CameraShakeEvent;
 
+#[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CameraState {
+    #[default]
+    Following,
+    Shaking,
+}
+
 pub fn setup_camera(mut commands: Commands) {
     let mut camera2d_bundle = Camera2dBundle::default();
     camera2d_bundle.projection.scale = CAMERA_SCALE;
@@ -21,8 +28,12 @@ pub fn setup_camera(mut commands: Commands) {
 pub fn camera_follow(
     mut q_camera: Query<&mut Transform, (With<Camera>, Without<Player>)>,
     q_player: Query<&Transform, With<Player>>,
+    camera_state: Res<CameraState>,
 ) {
     if q_player.is_empty() {
+        return;
+    }
+    if *camera_state != CameraState::Following {
         return;
     }
     let player_pos = q_player.single().translation.truncate();
@@ -50,11 +61,13 @@ pub fn camera_shake(
     mut q_camera: Query<&mut Transform, With<Camera>>,
     mut camera_shake_er: EventReader<CameraShakeEvent>,
     mut shake_timer: Local<f32>,
+    mut camera_state: ResMut<CameraState>,
     time: Res<Time>,
 ) {
     if !camera_shake_er.is_empty() {
         // 重置计时器，秒
-        *shake_timer = 0.3;
+        *shake_timer = 0.2;
+        *camera_state = CameraState::Shaking;
         camera_shake_er.clear();
     }
     if *shake_timer > 0.0 {
@@ -65,5 +78,8 @@ pub fn camera_shake(
             camera.translation.x += rng.gen_range(-1.0..1.0);
             camera.translation.y += rng.gen_range(-1.0..1.0);
         }
+    } else {
+        // 抖动结束
+        *camera_state = CameraState::Following;
     }
 }

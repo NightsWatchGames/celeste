@@ -7,8 +7,8 @@ use bevy_rapier2d::prelude::*;
 use crate::{
     camera::CameraShakeEvent,
     common::{
-        AnimationBundle, AnimationIndices, AnimationTimer, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER,
-        SPRITE_PLAYER_ORDER, TILE_SIZE, PLAYER_GRAVITY_SCALE, PLAYER_DASHING_COLOR,
+        AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR,
+        PLAYER_GRAVITY_SCALE, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
     level::{Facing, Player, PlayerBundle, Trap, LEVEL_TRANSLATION_OFFSET},
 };
@@ -172,6 +172,7 @@ pub fn player_dash(
     mut q_hair: Query<&mut TextureAtlasSprite, With<Hair>>,
     mut spawn_dust_cd: Local<f32>,
     mut dash_timer: Local<f32>,
+    mut camera_shake_ew: EventWriter<CameraShakeEvent>,
     time: Res<Time>,
 ) {
     if q_player.is_empty() {
@@ -179,6 +180,7 @@ pub fn player_dash(
     }
     if keyboard_input.just_pressed(KeyCode::J) && *dash_timer <= 0.0 {
         *dash_timer = 0.2;
+        camera_shake_ew.send_default();
     }
 
     let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
