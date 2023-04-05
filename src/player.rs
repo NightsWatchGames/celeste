@@ -21,7 +21,7 @@ pub struct Hair;
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Dust;
 
-#[derive(Debug, Resource, Clone, Copy, Default)]
+#[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq)]
 pub enum PlayerState {
     #[default]
     Runing,
@@ -151,13 +151,23 @@ pub fn player_run(
 
 // 角色跳跃
 pub fn player_jump(
+    mut commands: Commands,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<&mut Velocity, With<Player>>,
+    mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
 ) {
-    for mut velocity in &mut q_player {
+    for (mut velocity, transform) in &mut q_player {
         // 没有y轴速度，防止二段跳
         if keyboard_input.pressed(KeyCode::K) && velocity.linvel.y.abs() < 0.1 {
             velocity.linvel = Vec2::new(0.0, 300.0);
+            spawn_dust(
+                &mut commands,
+                &mut texture_atlases,
+                &asset_server,
+                transform.translation.truncate(),
+                Color::default(),
+            )
         }
     }
 }
@@ -169,10 +179,10 @@ pub fn player_dash(
     asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
-    mut q_hair: Query<&mut TextureAtlasSprite, With<Hair>>,
     mut spawn_dust_cd: Local<f32>,
     mut dash_timer: Local<f32>,
     mut camera_shake_ew: EventWriter<CameraShakeEvent>,
+    mut player_state: ResMut<PlayerState>,
     time: Res<Time>,
 ) {
     if q_player.is_empty() {
@@ -180,6 +190,7 @@ pub fn player_dash(
     }
     if keyboard_input.just_pressed(KeyCode::J) && *dash_timer <= 0.0 {
         *dash_timer = 0.2;
+        *player_state = PlayerState::Dashing;
         camera_shake_ew.send_default();
     }
 
@@ -193,11 +204,6 @@ pub fn player_dash(
         }
         // 重力为0
         gravity_scale.0 = 0.0;
-        // 头发变色
-        for mut single_hair in &mut q_hair {
-            single_hair.color = PLAYER_DASHING_COLOR;
-        }
-        // TODO 人物变色
 
         if *spawn_dust_cd > 0.0 {
             *spawn_dust_cd -= time.delta_seconds();
@@ -214,10 +220,9 @@ pub fn player_dash(
         }
     } else {
         // 冲刺完毕
+        // TODO 暂时这样
+        *player_state = PlayerState::Jumping;
         gravity_scale.0 = PLAYER_GRAVITY_SCALE;
-        for mut single_hair in &mut q_hair {
-            single_hair.color = Color::RED;
-        }
     }
 }
 
@@ -292,6 +297,23 @@ pub fn animate_stand(
     }
 }
 
+// 冲刺动画
+pub fn animate_dash(
+    mut q_player: Query<(&Facing, &mut TextureAtlasSprite), With<Player>>,
+    player_state: Res<PlayerState>,
+) {
+    if *player_state == PlayerState::Dashing {
+        for (facing, mut sprite) in &mut q_player {
+            sprite.index = 131;
+            if *facing == Facing::Left {
+                sprite.flip_x = true;
+            } else {
+                sprite.flip_x = false;
+            }
+        }
+    }
+}
+
 // 创建角色头发
 pub fn spawn_hair(
     mut commands: Commands,
@@ -353,6 +375,7 @@ pub fn despawn_hair(
 pub fn animate_hair(
     mut q_hair: Query<(&mut Transform, &mut TextureAtlasSprite), (With<Hair>, Without<Player>)>,
     q_player: Query<(&Transform, &Facing), With<Player>>,
+    player_state: Res<PlayerState>,
     mut hair_flow: Local<VecDeque<Vec2>>,
 ) {
     if q_player.is_empty() || q_hair.is_empty() {
@@ -391,6 +414,17 @@ pub fn animate_hair(
                 bucket_index
             };
             count = 0;
+        }
+    }
+
+    // 冲刺期间头发变色
+    if *player_state == PlayerState::Dashing {
+        for (_, mut sprite) in &mut q_hair {
+            sprite.color = PLAYER_DASHING_COLOR;
+        }
+    } else {
+        for (_, mut sprite) in &mut q_hair {
+            sprite.color = Color::RED;
         }
     }
 }

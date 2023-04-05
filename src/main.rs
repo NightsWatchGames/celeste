@@ -92,6 +92,7 @@ fn main() {
                 animate_run,
                 animate_jump,
                 animate_stand,
+                animate_dash,
                 animate_hair,
                 animate_dust,
                 camera_follow,
