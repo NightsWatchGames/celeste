@@ -61,6 +61,8 @@ fn main() {
             level_background: LevelBackground::Nonexistent,
             ..Default::default()
         })
+        .insert_resource(PlayerState::Runing)
+        .insert_resource(CameraState::Following)
         .add_event::<SpringUpEvent>()
         .add_event::<CameraShakeEvent>()
         .add_startup_system(setup_camera)
@@ -90,6 +92,7 @@ fn main() {
                 animate_run,
                 animate_jump,
                 animate_stand,
+                animate_dash,
                 animate_hair,
                 animate_dust,
                 camera_follow,

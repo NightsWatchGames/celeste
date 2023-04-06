@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, default};
 
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
@@ -7,8 +7,8 @@ use bevy_rapier2d::prelude::*;
 use crate::{
     camera::CameraShakeEvent,
     common::{
-        AnimationBundle, AnimationIndices, AnimationTimer, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER,
-        SPRITE_PLAYER_ORDER, TILE_SIZE,
+        AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR,
+        PLAYER_GRAVITY_SCALE, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
     level::{Facing, Player, PlayerBundle, Trap, LEVEL_TRANSLATION_OFFSET},
 };
@@ -20,6 +20,15 @@ pub struct Hair;
 // 灰尘
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Dust;
+
+#[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PlayerState {
+    #[default]
+    Runing,
+    Dashing,
+    Jumping,
+    Climbing,
+}
 
 // 玩家死亡
 pub fn player_die(
@@ -42,6 +51,7 @@ pub fn player_die(
                         &mut texture_atlases,
                         &asset_server,
                         q_player.single().translation.truncate(),
+                        Color::default(),
                     );
                     camera_shake_ew.send_default();
                 } else if q_trap.contains(*entity2) {
@@ -52,6 +62,7 @@ pub fn player_die(
                         &mut texture_atlases,
                         &asset_server,
                         q_player.single().translation.truncate(),
+                        Color::default(),
                     );
                     camera_shake_ew.send_default();
                 }
@@ -115,7 +126,7 @@ pub fn spawn_player(
         rigid_body: RigidBody::Dynamic,
         rotation_constraints: LockedAxes::ROTATION_LOCKED,
         velocity: Velocity::zero(),
-        gravity_scale: GravityScale(10.0),
+        gravity_scale: GravityScale(PLAYER_GRAVITY_SCALE),
     });
 }
 
@@ -167,13 +178,23 @@ pub fn player_run(
 
 // 角色跳跃
 pub fn player_jump(
+    mut commands: Commands,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<&mut Velocity, With<Player>>,
+    mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
 ) {
-    for mut velocity in &mut q_player {
+    for (mut velocity, transform) in &mut q_player {
         // 没有y轴速度，防止二段跳
         if keyboard_input.pressed(KeyCode::K) && velocity.linvel.y.abs() < 0.1 {
             velocity.linvel = Vec2::new(0.0, 300.0);
+            spawn_dust(
+                &mut commands,
+                &mut texture_atlases,
+                &asset_server,
+                transform.translation.truncate(),
+                Color::default(),
+            )
         }
     }
 }
@@ -184,32 +205,51 @@ pub fn player_dash(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<(&mut Velocity, &Facing, &Transform), With<Player>>,
+    mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
     mut spawn_dust_cd: Local<f32>,
+    mut dash_timer: Local<f32>,
+    mut camera_shake_ew: EventWriter<CameraShakeEvent>,
+    mut player_state: ResMut<PlayerState>,
     time: Res<Time>,
 ) {
-    for (mut velocity, facing, transform) in &mut q_player {
-        if keyboard_input.pressed(KeyCode::J) {
-            if *facing == Facing::Left {
-                velocity.linvel = Vec2::new(-200.0, 0.0);
-            }
-            if *facing == Facing::Right {
-                velocity.linvel = Vec2::new(200.0, 0.0);
-            }
+    if q_player.is_empty() {
+        return;
+    }
+    if keyboard_input.just_pressed(KeyCode::J) && *dash_timer <= 0.0 {
+        *dash_timer = 0.2;
+        *player_state = PlayerState::Dashing;
+        camera_shake_ew.send_default();
+    }
 
-            if *spawn_dust_cd > 0.0 {
-                *spawn_dust_cd -= time.delta_seconds();
-            } else {
-                spawn_dust(
-                    &mut commands,
-                    &mut texture_atlases,
-                    &asset_server,
-                    transform.translation.truncate(),
-                );
-                // 重置cd
-                *spawn_dust_cd = 0.02;
-            }
+    let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
+    if *dash_timer > 0.0 {
+        *dash_timer -= time.delta_seconds();
+        if *facing == Facing::Left {
+            velocity.linvel = Vec2::new(-200.0, 0.0);
+        } else if *facing == Facing::Right {
+            velocity.linvel = Vec2::new(200.0, 0.0);
         }
+        // 重力为0
+        gravity_scale.0 = 0.0;
+
+        if *spawn_dust_cd > 0.0 {
+            *spawn_dust_cd -= time.delta_seconds();
+        } else {
+            spawn_dust(
+                &mut commands,
+                &mut texture_atlases,
+                &asset_server,
+                transform.translation.truncate(),
+                PLAYER_DASHING_COLOR,
+            );
+            // 重置cd
+            *spawn_dust_cd = 0.02;
+        }
+    } else {
+        // 冲刺完毕
+        // TODO 暂时这样
+        *player_state = PlayerState::Jumping;
+        gravity_scale.0 = PLAYER_GRAVITY_SCALE;
     }
 }
 
@@ -284,6 +324,23 @@ pub fn animate_stand(
     }
 }
 
+// 冲刺动画
+pub fn animate_dash(
+    mut q_player: Query<(&Facing, &mut TextureAtlasSprite), With<Player>>,
+    player_state: Res<PlayerState>,
+) {
+    if *player_state == PlayerState::Dashing {
+        for (facing, mut sprite) in &mut q_player {
+            sprite.index = 131;
+            if *facing == Facing::Left {
+                sprite.flip_x = true;
+            } else {
+                sprite.flip_x = false;
+            }
+        }
+    }
+}
+
 // 创建角色头发
 pub fn spawn_hair(
     mut commands: Commands,
@@ -345,6 +402,7 @@ pub fn despawn_hair(
 pub fn animate_hair(
     mut q_hair: Query<(&mut Transform, &mut TextureAtlasSprite), (With<Hair>, Without<Player>)>,
     q_player: Query<(&Transform, &Facing), With<Player>>,
+    player_state: Res<PlayerState>,
     mut hair_flow: Local<VecDeque<Vec2>>,
 ) {
     if q_player.is_empty() || q_hair.is_empty() {
@@ -385,6 +443,17 @@ pub fn animate_hair(
             count = 0;
         }
     }
+
+    // 冲刺期间头发变色
+    if *player_state == PlayerState::Dashing {
+        for (_, mut sprite) in &mut q_hair {
+            sprite.color = PLAYER_DASHING_COLOR;
+        }
+    } else {
+        for (_, mut sprite) in &mut q_hair {
+            sprite.color = Color::RED;
+        }
+    }
 }
 
 pub fn spawn_dust(
@@ -392,6 +461,7 @@ pub fn spawn_dust(
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     asset_server: &Res<AssetServer>,
     dust_pos: Vec2,
+    dust_color: Color,
 ) {
     let texture_handle = asset_server.load("textures/atlas.png");
     let texture_atlas =
@@ -401,7 +471,11 @@ pub fn spawn_dust(
     commands.spawn((
         Dust,
         SpriteSheetBundle {
-            sprite: TextureAtlasSprite::new(29),
+            sprite: TextureAtlasSprite {
+                index: 29,
+                color: dust_color,
+                ..default()
+            },
             texture_atlas: texture_atlas_handle,
             transform: Transform::from_translation(dust_pos.extend(SPRITE_DUST_ORDER)),
             ..default()
