@@ -10,7 +10,8 @@ use crate::{
         AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR,
         PLAYER_GRAVITY_SCALE, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
-    level::{Facing, Player, PlayerBundle, Snowdrift, Trap, LEVEL_TRANSLATION_OFFSET},
+    level::{Facing, Player, PlayerBundle, Snowdrift, Terrain, Trap, LEVEL_TRANSLATION_OFFSET},
+    statemachine::PlayerState,
 };
 
 // 角色头发
@@ -21,13 +22,16 @@ pub struct Hair;
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Dust;
 
-#[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq)]
-pub enum PlayerState {
-    #[default]
-    Runing,
-    Dashing,
-    Jumping,
-    Climbing,
+// 冲刺结束事件
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct DashOverEvent;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NextToWall {
+    // 墙在左侧
+    LeftWall,
+    // 墙在右侧
+    RightWall,
 }
 
 // 玩家死亡
@@ -134,14 +138,22 @@ pub fn spawn_player(
 pub fn player_run(
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
+    mut player_state: ResMut<PlayerState>,
 ) {
+    // TODO 应该是角色在stading状态才能奔跑
+    if *player_state == PlayerState::Dashing {
+        return;
+    }
     for (mut velocity, mut facing) in &mut q_player {
         if keyboard_input.pressed(KeyCode::A) {
             velocity.linvel.x = -50.0;
             *facing = Facing::Left;
+            *player_state = PlayerState::Running;
         } else if keyboard_input.pressed(KeyCode::D) {
             velocity.linvel.x = 50.0;
             *facing = Facing::Right;
+            *player_state = PlayerState::Running;
+        } else if keyboard_input.pressed(KeyCode::D) {
         } else {
             // 不按键时停止左右移动
             velocity.linvel.x = 0.0;
@@ -156,11 +168,13 @@ pub fn player_jump(
     asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
+    mut player_state: ResMut<PlayerState>,
 ) {
     for (mut velocity, transform) in &mut q_player {
         // 没有y轴速度，防止二段跳
         if keyboard_input.pressed(KeyCode::K) && velocity.linvel.y.abs() < 0.1 {
             velocity.linvel = Vec2::new(0.0, 300.0);
+            *player_state = PlayerState::Jumping;
             spawn_dust(
                 &mut commands,
                 &mut texture_atlases,
@@ -182,6 +196,7 @@ pub fn player_dash(
     mut spawn_dust_cd: Local<f32>,
     mut dash_timer: Local<f32>,
     mut camera_shake_ew: EventWriter<CameraShakeEvent>,
+    mut dash_over_ew: EventWriter<DashOverEvent>,
     mut player_state: ResMut<PlayerState>,
     time: Res<Time>,
 ) {
@@ -218,19 +233,99 @@ pub fn player_dash(
             // 重置cd
             *spawn_dust_cd = 0.02;
         }
+        if *dash_timer <= 0.0 {
+            // 冲刺自然结束（未产生碰撞）
+            velocity.linvel.x = 0.0;
+            gravity_scale.0 = PLAYER_GRAVITY_SCALE;
+            dash_over_ew.send_default();
+        }
     }
-    if *dash_timer <= 0.0 || *player_state != PlayerState::Dashing {
-        // 冲刺完毕
-        // TODO 暂时这样
+    if *player_state != PlayerState::Dashing {
         *dash_timer = 0.0;
-        *player_state = PlayerState::Jumping;
+    }
+}
+
+// 角色爬墙
+pub fn player_climb(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
+    q_terrain: Query<&GlobalTransform, With<Terrain>>,
+    mut collision_er: EventReader<CollisionEvent>,
+    mut player_state: ResMut<PlayerState>,
+    mut next_to_wall: Local<Option<NextToWall>>,
+) {
+    if q_player.is_empty() {
+        return;
+    }
+    // 检测跟左右墙壁的碰撞
+    for collision_event in collision_er.iter() {
+        match collision_event {
+            CollisionEvent::Started(entity1, entity2, _) => {
+                let (player_entity, other_entity) = if q_player.contains(*entity1) {
+                    (*entity1, *entity2)
+                } else if q_player.contains(*entity2) {
+                    (*entity2, *entity1)
+                } else {
+                    continue;
+                };
+                if q_terrain.contains(other_entity) {
+                    let wall_pos = q_terrain
+                        .get_component::<GlobalTransform>(other_entity)
+                        .unwrap()
+                        .translation()
+                        .truncate();
+                    let player_pos = q_player
+                        .get_component::<Transform>(player_entity)
+                        .unwrap()
+                        .translation
+                        .truncate();
+                    if (player_pos.x - wall_pos.x).abs() > TILE_SIZE
+                        && (player_pos.y - wall_pos.y).abs() < TILE_SIZE
+                    {
+                        if player_pos.x > wall_pos.x {
+                            *next_to_wall = Some(NextToWall::LeftWall);
+                        } else {
+                            *next_to_wall = Some(NextToWall::RightWall);
+                        }
+                    }
+                }
+            }
+            CollisionEvent::Stopped(entity1, entity2, _) => {
+                let (player_entity, other_entity) = if q_player.contains(*entity1) {
+                    (*entity1, *entity2)
+                } else if q_player.contains(*entity2) {
+                    (*entity2, *entity1)
+                } else {
+                    continue;
+                };
+                if q_terrain.contains(other_entity) {
+                    *next_to_wall = None;
+                }
+            }
+        }
+    }
+    let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
+    // 面向墙壁 且 挨着墙 且 按下对应方向键
+    if *facing == Facing::Left
+        && keyboard_input.pressed(KeyCode::A)
+        && next_to_wall.is_some()
+        && next_to_wall.as_ref().unwrap() == &NextToWall::LeftWall
+        || *facing == Facing::Right
+            && keyboard_input.pressed(KeyCode::D)
+            && next_to_wall.is_some()
+            && next_to_wall.as_ref().unwrap() == &NextToWall::RightWall
+    {
+        velocity.linvel = Vec2::new(0.0, 0.0);
+        *player_state = PlayerState::Climbing;
+        // TODO 重力为0
+        gravity_scale.0 = 0.0;
+    } else {
         gravity_scale.0 = PLAYER_GRAVITY_SCALE;
     }
 }
 
 // 地面奔跑动画
 pub fn animate_run(
-    keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<
         (
             &Facing,
@@ -240,10 +335,10 @@ pub fn animate_run(
         ),
         With<Player>,
     >,
+    player_state: Res<PlayerState>,
     time: Res<Time>,
 ) {
-    // TODO 暂时通过这个判断处于run状态
-    if keyboard_input.any_pressed([KeyCode::A, KeyCode::D]) {
+    if *player_state == PlayerState::Running {
         for (facing, mut timer, mut indices, mut sprite) in &mut q_player {
             timer.0.tick(time.delta());
             if timer.0.just_finished() {
@@ -268,15 +363,18 @@ pub fn animate_run(
 // 跳跃动画
 pub fn animate_jump(
     mut q_player: Query<(&Velocity, &Facing, &mut TextureAtlasSprite), With<Player>>,
+    player_state: Res<PlayerState>,
 ) {
-    for (velocity, facing, mut sprite) in &mut q_player {
-        // TODO 暂时通过这个判断处于jump状态
-        if velocity.linvel.y.abs() > 0.1 {
-            sprite.index = 3;
-            if *facing == Facing::Left {
-                sprite.flip_x = true;
-            } else {
-                sprite.flip_x = false;
+    if *player_state == PlayerState::Jumping {
+        for (velocity, facing, mut sprite) in &mut q_player {
+            // TODO 暂时加上y轴速度判断
+            if velocity.linvel.y.abs() > 0.1 {
+                sprite.index = 3;
+                if *facing == Facing::Left {
+                    sprite.flip_x = true;
+                } else {
+                    sprite.flip_x = false;
+                }
             }
         }
     }

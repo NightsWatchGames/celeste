@@ -4,7 +4,8 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     common::{AnimationBundle, AnimationIndices, AnimationTimer, AppState, TILE_SIZE},
-    player::{self, spawn_dust, spawn_player, PlayerState},
+    player::{self, spawn_dust, spawn_player},
+    statemachine::PlayerState,
 };
 
 pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -220.0, 0.0);
@@ -24,6 +25,9 @@ pub struct WoodenStand;
 // 气球绳
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct BalloonRope;
+// 地形
+#[derive(Debug, Component, Clone, Copy, Default)]
+pub struct Terrain;
 // 玩家
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Player;
@@ -57,6 +61,7 @@ pub struct SensorBundle {
 
 #[derive(Clone, Debug, Default, Bundle, LdtkIntCell)]
 pub struct TerrainBundle {
+    pub terrain: Terrain,
     #[from_int_grid_cell]
     #[bundle]
     pub collider_bundle: ColliderBundle,

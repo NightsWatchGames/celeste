@@ -12,6 +12,7 @@ use camera::*;
 use common::*;
 use level::*;
 use player::*;
+use statemachine::*;
 use ui::*;
 use weather::*;
 
@@ -19,6 +20,7 @@ mod camera;
 mod common;
 mod level;
 mod player;
+mod statemachine;
 mod ui;
 mod weather;
 
@@ -61,10 +63,12 @@ fn main() {
             level_background: LevelBackground::Nonexistent,
             ..Default::default()
         })
-        .insert_resource(PlayerState::Runing)
+        .insert_resource(PlayerState::Standing)
         .insert_resource(CameraState::Following)
+        .register_type::<PlayerState>()
         .add_event::<SpringUpEvent>()
         .add_event::<CameraShakeEvent>()
+        .add_event::<DashOverEvent>()
         .add_startup_system(setup_camera)
         // Start Menu
         .add_system(setup_start_menu.in_schedule(OnEnter(AppState::StartMenu)))
@@ -93,6 +97,7 @@ fn main() {
                 player_run,
                 player_jump,
                 player_dash,
+                player_climb,
                 player_die,
                 despawn_hair.after(player_die),
                 player_revive,
@@ -107,6 +112,7 @@ fn main() {
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
+        .add_systems((player_state_machine,).in_set(OnUpdate(AppState::Gaming)))
         .register_ldtk_int_cell::<TerrainBundle>(1)
         .register_ldtk_entity::<SpringBundle>("Spring")
         .register_ldtk_entity::<TrapBundle>("Trap")
