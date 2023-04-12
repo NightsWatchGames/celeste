@@ -78,7 +78,15 @@ fn main() {
                 .run_if(in_state(AppState::Gaming)),
         )
         .add_systems(
-            (spring_up, aninmate_spring, animate_balloon_rope).in_set(OnUpdate(AppState::Gaming)),
+            (
+                spring_up,
+                snowdrift_broken,
+                aninmate_spring,
+                animate_balloon_rope,
+                camera_follow,
+                camera_shake,
+            )
+                .in_set(OnUpdate(AppState::Gaming)),
         )
         .add_systems(
             (
@@ -89,14 +97,13 @@ fn main() {
                 despawn_hair.after(player_die),
                 player_revive,
                 spawn_hair.after(player_revive),
+                handle_player_collision,
                 animate_run,
                 animate_jump,
                 animate_stand,
                 animate_dash,
                 animate_hair,
                 animate_dust,
-                camera_follow,
-                camera_shake,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )

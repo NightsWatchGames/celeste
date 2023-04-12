@@ -10,7 +10,7 @@ use crate::{
         AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR,
         PLAYER_GRAVITY_SCALE, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
-    level::{Facing, Player, PlayerBundle, Trap, LEVEL_TRANSLATION_OFFSET},
+    level::{Facing, Player, PlayerBundle, Snowdrift, Trap, LEVEL_TRANSLATION_OFFSET},
 };
 
 // 角色头发
@@ -195,7 +195,7 @@ pub fn player_dash(
     }
 
     let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
-    if *dash_timer > 0.0 {
+    if *dash_timer > 0.0 && *player_state == PlayerState::Dashing {
         *dash_timer -= time.delta_seconds();
         if *facing == Facing::Left {
             velocity.linvel = Vec2::new(-200.0, 0.0);
@@ -218,9 +218,11 @@ pub fn player_dash(
             // 重置cd
             *spawn_dust_cd = 0.02;
         }
-    } else {
+    }
+    if *dash_timer <= 0.0 || *player_state != PlayerState::Dashing {
         // 冲刺完毕
         // TODO 暂时这样
+        *dash_timer = 0.0;
         *player_state = PlayerState::Jumping;
         gravity_scale.0 = PLAYER_GRAVITY_SCALE;
     }
@@ -368,6 +370,42 @@ pub fn despawn_hair(
     if q_player.is_empty() && !q_hair.is_empty() {
         for entity in &q_hair {
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub fn handle_player_collision(
+    mut commands: Commands,
+    mut q_player: Query<(&mut Velocity, &mut GravityScale), With<Player>>,
+    q_snowdrift: Query<(), With<Snowdrift>>,
+    mut collision_er: EventReader<CollisionEvent>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    if q_player.is_empty() {
+        return;
+    }
+    for collision in collision_er.iter() {
+        match collision {
+            CollisionEvent::Started(entity1, entity2, _) => {
+                let (player_entity, other_entity) = if q_player.contains(*entity1) {
+                    (*entity1, *entity2)
+                } else if q_player.contains(*entity2) {
+                    (*entity2, *entity1)
+                } else {
+                    continue;
+                };
+                info!("Player collision");
+                // 碰撞到雪堆
+                if q_snowdrift.contains(other_entity) {
+                    info!("Player collision with snowdrift");
+                    if *player_state == PlayerState::Dashing {
+                        *player_state = PlayerState::Jumping;
+                        q_player.single_mut().0.linvel.x = 0.0;
+                        q_player.single_mut().1 .0 = PLAYER_GRAVITY_SCALE;
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
