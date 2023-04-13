@@ -4,7 +4,8 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     common::{AnimationBundle, AnimationIndices, AnimationTimer, AppState, TILE_SIZE},
-    player::spawn_player,
+    player::{self, spawn_dust, spawn_player},
+    statemachine::PlayerState,
 };
 
 pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -220.0, 0.0);
@@ -24,6 +25,9 @@ pub struct WoodenStand;
 // 气球绳
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct BalloonRope;
+// 地形
+#[derive(Debug, Component, Clone, Copy, Default)]
+pub struct Terrain;
 // 玩家
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Player;
@@ -45,6 +49,7 @@ pub struct SpringUpEvent {
 pub struct ColliderBundle {
     pub collider: Collider,
     pub rigid_body: RigidBody,
+    pub active_events: ActiveEvents,
 }
 #[derive(Clone, Debug, Default, Bundle)]
 pub struct SensorBundle {
@@ -56,6 +61,7 @@ pub struct SensorBundle {
 
 #[derive(Clone, Debug, Default, Bundle, LdtkIntCell)]
 pub struct TerrainBundle {
+    pub terrain: Terrain,
     #[from_int_grid_cell]
     #[bundle]
     pub collider_bundle: ColliderBundle,
@@ -157,6 +163,7 @@ impl From<&EntityInstance> for ColliderBundle {
             "Snowdrift" => ColliderBundle {
                 collider: Collider::cuboid(TILE_SIZE, TILE_SIZE),
                 rigid_body: RigidBody::Fixed,
+                active_events: ActiveEvents::COLLISION_EVENTS,
             },
             _ => ColliderBundle::default(),
         }
@@ -183,6 +190,7 @@ impl From<IntGridCell> for ColliderBundle {
             ColliderBundle {
                 collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
                 rigid_body: RigidBody::Fixed,
+                active_events: ActiveEvents::COLLISION_EVENTS,
             }
         } else {
             panic!("Unsupported int grid cell value")
@@ -267,6 +275,68 @@ pub fn spring_up(
                 spring_up_ew.send(SpringUpEvent {
                     entity: spring_entity,
                 });
+            }
+            _ => {}
+        }
+    }
+}
+
+// 雪堆破坏
+pub fn snowdrift_broken(
+    mut commands: Commands,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
+    mut collision_er: EventReader<CollisionEvent>,
+    q_snowdrift: Query<(Entity, &GlobalTransform), With<Snowdrift>>,
+    player_state: Res<PlayerState>,
+) {
+    if *player_state != PlayerState::Dashing {
+        return;
+    }
+    for event in collision_er.iter() {
+        match event {
+            CollisionEvent::Started(entity1, entity2, _flags) => {
+                let snowdrift_entity = if q_snowdrift.contains(*entity1) {
+                    *entity1
+                } else if q_snowdrift.contains(*entity2) {
+                    *entity2
+                } else {
+                    continue;
+                };
+                info!("Snow drift collision");
+                let snowdrift_transfrom = q_snowdrift
+                    .get_component::<GlobalTransform>(snowdrift_entity)
+                    .unwrap();
+                let snowdrift_pos = snowdrift_transfrom.translation().truncate();
+                commands.entity(snowdrift_entity).despawn();
+                spawn_dust(
+                    &mut commands,
+                    &mut texture_atlases,
+                    &asset_server,
+                    snowdrift_pos + Vec2::new(4.0, 4.0),
+                    Color::default(),
+                );
+                spawn_dust(
+                    &mut commands,
+                    &mut texture_atlases,
+                    &asset_server,
+                    snowdrift_pos + Vec2::new(4.0, -4.0),
+                    Color::default(),
+                );
+                spawn_dust(
+                    &mut commands,
+                    &mut texture_atlases,
+                    &asset_server,
+                    snowdrift_pos + Vec2::new(-4.0, 4.0),
+                    Color::default(),
+                );
+                spawn_dust(
+                    &mut commands,
+                    &mut texture_atlases,
+                    &asset_server,
+                    snowdrift_pos + Vec2::new(-4.0, -4.0),
+                    Color::default(),
+                );
             }
             _ => {}
         }
