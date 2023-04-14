@@ -37,6 +37,24 @@ wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/relea
 - [LDtk一小时完全入门教程](https://www.bilibili.com/video/BV1y64y1z7Uw)
 
 ## 问题
-**1.像素完美是什么意思？**
+**1.像素完美 (Pixel Perfect) 是什么意思？**
 
-**2.角色控制有哪些方式？**
+指确保像素图像在不同分辨率下始终保持锐利清晰，并在运动中保持稳定，在Bevy中通过`ImagePlugin::default_nearest()`设置。
+
+参考
+- https://docs.unity3d.com/cn/2019.4/Manual/com.unity.2d.pixel-perfect.html
+- https://github.com/bevyengine/bevy/blob/main/examples/2d/pixel_perfect.rs
+
+
+**2.常见角色控制有哪些方式？**
+
+1. 通过`Transform`组件直接指定角色坐标
+2. 通过设置`RigidBody`刚体组件，利用物理引擎（力、速度、加速度等）控制角色
+3. 通过`CharacterController`来控制角色，它不受物理（如重力）限制，会自动处理碰撞检测，移动，跳跃等，可以很方便地实现在各种复杂地形中运动
+4. 通过为角色添加NavMesh Agent组件并使用导航网格系统来实现角色的自动寻路和移动
+5. 通过为角色添加Animator组件并使用动画系统来实现角色的移动、旋转和动作
+6. 通过编写自定义脚本来实现角色的移动、旋转和碰撞
+
+参考
+- https://rapier.rs/docs/user_guides/bevy_plugin/character_controller/
+- https://docs.unity3d.com/cn/2021.1/Manual/class-CharacterController.html

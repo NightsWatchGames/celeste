@@ -8,6 +8,8 @@ pub const PLAYER_DASHING_COLOR: Color = Color::rgb(
     173 as f32 / u8::MAX as f32,
     255 as f32 / u8::MAX as f32,
 );
+pub const PLAYER_DASH_SPEED: f32 = 200.0;
+pub const PLAYER_JUMP_SPEED: f32 = 300.0;
 
 // sprite z轴顺序
 pub const SPRITE_DUST_ORDER: f32 = 2.0;
@@ -35,4 +37,8 @@ pub struct AnimationIndices {
 pub struct AnimationBundle {
     pub timer: AnimationTimer,
     pub indices: AnimationIndices,
+}
+
+pub fn in_gaming_state(app_state: Res<State<AppState>>) -> bool {
+    app_state.0 == AppState::Gaming
 }

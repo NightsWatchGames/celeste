@@ -8,7 +8,7 @@ use crate::{
     camera::CameraShakeEvent,
     common::{
         AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR,
-        PLAYER_GRAVITY_SCALE, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
+        PLAYER_GRAVITY_SCALE, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE, PLAYER_DASH_SPEED, PLAYER_JUMP_SPEED,
     },
     level::{Facing, Player, PlayerBundle, Snowdrift, Terrain, Trap, LEVEL_TRANSLATION_OFFSET},
     statemachine::PlayerState,
@@ -22,6 +22,9 @@ pub struct Hair;
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Dust;
 
+// 冲刺开始事件
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct DashStartEvent;
 // 冲刺结束事件
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct DashOverEvent;
@@ -138,9 +141,9 @@ pub fn spawn_player(
 pub fn player_run(
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
-    mut player_state: ResMut<PlayerState>,
+    player_state: Res<PlayerState>,
 ) {
-    // TODO 应该是角色在stading状态才能奔跑
+    // TODO 应该是角色在standing状态才能奔跑
     if *player_state == PlayerState::Dashing {
         return;
     }
@@ -148,11 +151,9 @@ pub fn player_run(
         if keyboard_input.pressed(KeyCode::A) {
             velocity.linvel.x = -50.0;
             *facing = Facing::Left;
-            *player_state = PlayerState::Running;
         } else if keyboard_input.pressed(KeyCode::D) {
             velocity.linvel.x = 50.0;
             *facing = Facing::Right;
-            *player_state = PlayerState::Running;
         } else if keyboard_input.pressed(KeyCode::D) {
         } else {
             // 不按键时停止左右移动
@@ -168,13 +169,12 @@ pub fn player_jump(
     asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
-    mut player_state: ResMut<PlayerState>,
 ) {
     for (mut velocity, transform) in &mut q_player {
         // 没有y轴速度，防止二段跳
+        // TODO 角色在Jumping/Dashing状态不能跳跃
         if keyboard_input.pressed(KeyCode::K) && velocity.linvel.y.abs() < 0.1 {
-            velocity.linvel = Vec2::new(0.0, 300.0);
-            *player_state = PlayerState::Jumping;
+            velocity.linvel = Vec2::new(0.0, PLAYER_JUMP_SPEED);
             spawn_dust(
                 &mut commands,
                 &mut texture_atlases,
@@ -196,16 +196,18 @@ pub fn player_dash(
     mut spawn_dust_cd: Local<f32>,
     mut dash_timer: Local<f32>,
     mut camera_shake_ew: EventWriter<CameraShakeEvent>,
+    mut dash_start_ew: EventWriter<DashStartEvent>,
     mut dash_over_ew: EventWriter<DashOverEvent>,
-    mut player_state: ResMut<PlayerState>,
+    player_state: Res<PlayerState>,
     time: Res<Time>,
 ) {
     if q_player.is_empty() {
         return;
     }
-    if keyboard_input.just_pressed(KeyCode::J) && *dash_timer <= 0.0 {
+    // 冲刺期间不能再次冲刺
+    if keyboard_input.just_pressed(KeyCode::J) && *player_state != PlayerState::Dashing {
         *dash_timer = 0.2;
-        *player_state = PlayerState::Dashing;
+        dash_start_ew.send_default();
         camera_shake_ew.send_default();
     }
 
@@ -213,9 +215,9 @@ pub fn player_dash(
     if *dash_timer > 0.0 && *player_state == PlayerState::Dashing {
         *dash_timer -= time.delta_seconds();
         if *facing == Facing::Left {
-            velocity.linvel = Vec2::new(-200.0, 0.0);
+            velocity.linvel = Vec2::new(-PLAYER_DASH_SPEED, 0.0);
         } else if *facing == Facing::Right {
-            velocity.linvel = Vec2::new(200.0, 0.0);
+            velocity.linvel = Vec2::new(PLAYER_DASH_SPEED, 0.0);
         }
         // 重力为0
         gravity_scale.0 = 0.0;
@@ -235,13 +237,22 @@ pub fn player_dash(
         }
         if *dash_timer <= 0.0 {
             // 冲刺自然结束（未产生碰撞）
-            velocity.linvel.x = 0.0;
-            gravity_scale.0 = PLAYER_GRAVITY_SCALE;
             dash_over_ew.send_default();
         }
     }
-    if *player_state != PlayerState::Dashing {
-        *dash_timer = 0.0;
+}
+
+pub fn player_dash_over(
+    mut q_player: Query<(&mut Velocity, &mut GravityScale), With<Player>>,
+    mut dash_over_er: EventReader<DashOverEvent>,
+) {
+    if q_player.is_empty() {
+        return;
+    }
+    let (mut velocity, mut gravity_scale) = q_player.single_mut();
+    if dash_over_er.iter().next().is_some() {
+        velocity.linvel.x = 0.0;
+        gravity_scale.0 = PLAYER_GRAVITY_SCALE;
     }
 }
 

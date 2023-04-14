@@ -68,6 +68,7 @@ fn main() {
         .register_type::<PlayerState>()
         .add_event::<SpringUpEvent>()
         .add_event::<CameraShakeEvent>()
+        .add_event::<DashStartEvent>()
         .add_event::<DashOverEvent>()
         .add_startup_system(setup_camera)
         // Start Menu
@@ -97,12 +98,18 @@ fn main() {
                 player_run,
                 player_jump,
                 player_dash,
+                player_dash_over,
                 player_climb,
                 player_die,
                 despawn_hair.after(player_die),
                 player_revive,
                 spawn_hair.after(player_revive),
                 handle_player_collision,
+            )
+                .in_set(OnUpdate(AppState::Gaming)),
+        )
+        .add_systems(
+            (
                 animate_run,
                 animate_jump,
                 animate_stand,
@@ -112,7 +119,9 @@ fn main() {
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
-        .add_systems((player_state_machine,).in_set(OnUpdate(AppState::Gaming)))
+        // .add_systems((player_state_machine,).in_set(OnUpdate(AppState::Gaming)))
+        // TODO 下一版本可简化
+        .add_systems((player_state_machine,).in_base_set(CoreSet::PostUpdate).distributive_run_if(in_gaming_state))
         .register_ldtk_int_cell::<TerrainBundle>(1)
         .register_ldtk_entity::<SpringBundle>("Spring")
         .register_ldtk_entity::<TrapBundle>("Trap")
