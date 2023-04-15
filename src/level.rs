@@ -3,9 +3,11 @@ use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    common::{AnimationBundle, AnimationIndices, AnimationTimer, AppState, TILE_SIZE},
+    common::{
+        AnimationBundle, AnimationIndices, AnimationTimer, AppState, PLAYER_JUMP_SPEED, TILE_SIZE,
+    },
     player::{self, spawn_dust, spawn_player},
-    statemachine::PlayerState,
+    state_machine::PlayerState,
 };
 
 pub const LEVEL_TRANSLATION_OFFSET: Vec3 = Vec3::new(-250.0, -220.0, 0.0);
@@ -49,6 +51,7 @@ pub struct SpringUpEvent {
 pub struct ColliderBundle {
     pub collider: Collider,
     pub rigid_body: RigidBody,
+    pub restitution: Restitution,
     pub active_events: ActiveEvents,
 }
 #[derive(Clone, Debug, Default, Bundle)]
@@ -130,6 +133,7 @@ pub struct PlayerBundle {
     pub facing: Facing,
     pub collider: Collider,
     pub rigid_body: RigidBody,
+    pub restitution: Restitution,
     pub rotation_constraints: LockedAxes,
     pub velocity: Velocity,
     pub gravity_scale: GravityScale,
@@ -163,6 +167,7 @@ impl From<&EntityInstance> for ColliderBundle {
             "Snowdrift" => ColliderBundle {
                 collider: Collider::cuboid(TILE_SIZE, TILE_SIZE),
                 rigid_body: RigidBody::Fixed,
+                restitution: Restitution::new(0.0),
                 active_events: ActiveEvents::COLLISION_EVENTS,
             },
             _ => ColliderBundle::default(),
@@ -190,6 +195,7 @@ impl From<IntGridCell> for ColliderBundle {
             ColliderBundle {
                 collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
                 rigid_body: RigidBody::Fixed,
+                restitution: Restitution::new(0.0),
                 active_events: ActiveEvents::COLLISION_EVENTS,
             }
         } else {
@@ -270,7 +276,7 @@ pub fn spring_up(
                 };
                 info!("Spring up");
                 for mut velocity in &mut q_player {
-                    velocity.linvel.y = 300.0;
+                    velocity.linvel.y = PLAYER_JUMP_SPEED;
                 }
                 spring_up_ew.send(SpringUpEvent {
                     entity: spring_entity,

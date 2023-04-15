@@ -7,11 +7,12 @@ use bevy_rapier2d::prelude::*;
 use crate::{
     camera::CameraShakeEvent,
     common::{
-        AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR,
-        PLAYER_GRAVITY_SCALE, SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE, PLAYER_DASH_SPEED, PLAYER_JUMP_SPEED,
+        AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR, PLAYER_DASH_SPEED,
+        PLAYER_GRAVITY_SCALE, PLAYER_JUMP_SPEED, PLAYER_RUN_SPEED, SPRITE_DUST_ORDER,
+        SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
     level::{Facing, Player, PlayerBundle, Snowdrift, Terrain, Trap, LEVEL_TRANSLATION_OFFSET},
-    statemachine::PlayerState,
+    state_machine::PlayerState,
 };
 
 // 角色头发
@@ -28,6 +29,11 @@ pub struct DashStartEvent;
 // 冲刺结束事件
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct DashOverEvent;
+
+// 角色是否在地面上
+#[derive(Debug, Default, Resource, Reflect)]
+#[reflect(Resource)]
+pub struct PlayerGrounded(pub bool);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NextToWall {
@@ -131,28 +137,28 @@ pub fn spawn_player(
         facing: Facing::Right,
         collider: Collider::ball(TILE_SIZE / 2.0),
         rigid_body: RigidBody::Dynamic,
+        restitution: Restitution::new(0.0),
         rotation_constraints: LockedAxes::ROTATION_LOCKED,
         velocity: Velocity::zero(),
         gravity_scale: GravityScale(PLAYER_GRAVITY_SCALE),
     });
 }
 
-// 角色奔跑
+// 角色奔跑/移动
 pub fn player_run(
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
-    // TODO 应该是角色在standing状态才能奔跑
     if *player_state == PlayerState::Dashing {
         return;
     }
     for (mut velocity, mut facing) in &mut q_player {
         if keyboard_input.pressed(KeyCode::A) {
-            velocity.linvel.x = -50.0;
+            velocity.linvel.x = -PLAYER_RUN_SPEED;
             *facing = Facing::Left;
         } else if keyboard_input.pressed(KeyCode::D) {
-            velocity.linvel.x = 50.0;
+            velocity.linvel.x = PLAYER_RUN_SPEED;
             *facing = Facing::Right;
         } else if keyboard_input.pressed(KeyCode::D) {
         } else {
@@ -169,11 +175,15 @@ pub fn player_jump(
     asset_server: Res<AssetServer>,
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
+    player_state: Res<PlayerState>,
 ) {
     for (mut velocity, transform) in &mut q_player {
-        // 没有y轴速度，防止二段跳
-        // TODO 角色在Jumping/Dashing状态不能跳跃
-        if keyboard_input.pressed(KeyCode::K) && velocity.linvel.y.abs() < 0.1 {
+        // 角色在Jumping/Dashing状态不能跳跃
+        // TODO 可允许角色在非跳跃进入下坠状态时能够进行跳跃
+        if keyboard_input.just_pressed(KeyCode::K)
+            && *player_state != PlayerState::Jumping
+            && *player_state != PlayerState::Dashing
+        {
             velocity.linvel = Vec2::new(0.0, PLAYER_JUMP_SPEED);
             spawn_dust(
                 &mut commands,
@@ -373,19 +383,16 @@ pub fn animate_run(
 
 // 跳跃动画
 pub fn animate_jump(
-    mut q_player: Query<(&Velocity, &Facing, &mut TextureAtlasSprite), With<Player>>,
+    mut q_player: Query<(&Facing, &mut TextureAtlasSprite), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if *player_state == PlayerState::Jumping {
-        for (velocity, facing, mut sprite) in &mut q_player {
-            // TODO 暂时加上y轴速度判断
-            if velocity.linvel.y.abs() > 0.1 {
-                sprite.index = 3;
-                if *facing == Facing::Left {
-                    sprite.flip_x = true;
-                } else {
-                    sprite.flip_x = false;
-                }
+        for (facing, mut sprite) in &mut q_player {
+            sprite.index = 3;
+            if *facing == Facing::Left {
+                sprite.flip_x = true;
+            } else {
+                sprite.flip_x = false;
             }
         }
     }
@@ -393,11 +400,11 @@ pub fn animate_jump(
 
 // 站立动画
 pub fn animate_stand(
-    mut q_player: Query<(&Velocity, &Facing, &mut TextureAtlasSprite), With<Player>>,
+    mut q_player: Query<(&Facing, &mut TextureAtlasSprite), With<Player>>,
+    player_state: Res<PlayerState>,
 ) {
-    for (velocity, facing, mut sprite) in &mut q_player {
-        // TODO 暂时通过这个判断处于stand状态
-        if velocity.linvel.x.abs() < 0.1 && velocity.linvel.y.abs() < 0.1 {
+    if *player_state == PlayerState::Standing {
+        for (facing, mut sprite) in &mut q_player {
             sprite.index = 1;
             if *facing == Facing::Left {
                 sprite.flip_x = true;
@@ -488,7 +495,8 @@ pub fn handle_player_collision(
     mut q_player: Query<(&mut Velocity, &mut GravityScale), With<Player>>,
     q_snowdrift: Query<(), With<Snowdrift>>,
     mut collision_er: EventReader<CollisionEvent>,
-    mut player_state: ResMut<PlayerState>,
+    mut dash_over_ew: EventWriter<DashOverEvent>,
+    player_state: Res<PlayerState>,
 ) {
     if q_player.is_empty() {
         return;
@@ -508,9 +516,7 @@ pub fn handle_player_collision(
                 if q_snowdrift.contains(other_entity) {
                     info!("Player collision with snowdrift");
                     if *player_state == PlayerState::Dashing {
-                        *player_state = PlayerState::Jumping;
-                        q_player.single_mut().0.linvel.x = 0.0;
-                        q_player.single_mut().1 .0 = PLAYER_GRAVITY_SCALE;
+                        dash_over_ew.send_default();
                     }
                 }
             }
@@ -633,4 +639,30 @@ pub fn animate_dust(
             };
         }
     }
+}
+
+pub fn player_grounded_detect(
+    q_player: Query<&Transform, With<Player>>,
+    mut player_grounded: ResMut<PlayerGrounded>,
+    mut last: Local<(f32, isize)>,
+) {
+    if q_player.is_empty() {
+        return;
+    }
+    // 通过检测y轴坐标连续多帧是否变化来判断落地
+    let pos = q_player.single().translation.truncate();
+    if (pos.y * 10.).round() == last.0 {
+        last.1 += 1;
+    } else {
+        last.1 -= 1;
+    }
+    last.1 = last.1.clamp(0, 5);
+
+    if last.1 == 5 && !player_grounded.0 {
+        player_grounded.0 = true;
+    } else if last.1 < 2 && player_grounded.0 {
+        player_grounded.0 = false;
+    }
+
+    last.0 = (pos.y * 10.).round();
 }

@@ -12,7 +12,7 @@ use camera::*;
 use common::*;
 use level::*;
 use player::*;
-use statemachine::*;
+use state_machine::*;
 use ui::*;
 use weather::*;
 
@@ -20,7 +20,7 @@ mod camera;
 mod common;
 mod level;
 mod player;
-mod statemachine;
+mod state_machine;
 mod ui;
 mod weather;
 
@@ -65,7 +65,9 @@ fn main() {
         })
         .insert_resource(PlayerState::Standing)
         .insert_resource(CameraState::Following)
+        .insert_resource(PlayerGrounded(false))
         .register_type::<PlayerState>()
+        .register_type::<PlayerGrounded>()
         .add_event::<SpringUpEvent>()
         .add_event::<CameraShakeEvent>()
         .add_event::<DashStartEvent>()
@@ -105,6 +107,7 @@ fn main() {
                 player_revive,
                 spawn_hair.after(player_revive),
                 handle_player_collision,
+                player_grounded_detect,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
@@ -119,9 +122,12 @@ fn main() {
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
-        // .add_systems((player_state_machine,).in_set(OnUpdate(AppState::Gaming)))
         // TODO 下一版本可简化
-        .add_systems((player_state_machine,).in_base_set(CoreSet::PostUpdate).distributive_run_if(in_gaming_state))
+        .add_systems(
+            (player_state_machine,)
+                .in_base_set(CoreSet::PostUpdate)
+                .distributive_run_if(in_gaming_state),
+        )
         .register_ldtk_int_cell::<TerrainBundle>(1)
         .register_ldtk_entity::<SpringBundle>("Spring")
         .register_ldtk_entity::<TrapBundle>("Trap")

@@ -10,6 +10,7 @@ pub const PLAYER_DASHING_COLOR: Color = Color::rgb(
 );
 pub const PLAYER_DASH_SPEED: f32 = 200.0;
 pub const PLAYER_JUMP_SPEED: f32 = 300.0;
+pub const PLAYER_RUN_SPEED: f32 = 50.0;
 
 // sprite z轴顺序
 pub const SPRITE_DUST_ORDER: f32 = 2.0;

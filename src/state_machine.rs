@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{level::{Facing, Player}, common::PLAYER_DASH_SPEED, player::{DashOverEvent, DashStartEvent}};
+use crate::{
+    level::{Facing, Player},
+    player::{DashOverEvent, DashStartEvent, PlayerGrounded},
+};
 
 #[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq, Reflect)]
 #[reflect(Resource)]
@@ -17,7 +20,7 @@ pub enum PlayerState {
 pub fn player_state_machine(
     mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
     mut player_state: ResMut<PlayerState>,
-    mut player_on_ground: Local<bool>,
+    player_grounded: Res<PlayerGrounded>,
     mut dash_start_er: EventReader<DashStartEvent>,
     mut dash_over_er: EventReader<DashOverEvent>,
 ) {
@@ -34,24 +37,18 @@ pub fn player_state_machine(
     }
     let (mut velocity, mut facing) = q_player.single_mut();
     // Standing状态
-    if velocity.linvel.y.abs() < 0.1 && velocity.linvel.x.abs() < 0.1 {
+    if player_grounded.0 && velocity.linvel.x.abs() < 0.1 {
         *player_state = PlayerState::Standing;
         return;
     }
     // Running状态
-    if velocity.linvel.x.abs() > 10.0 && velocity.linvel.y.abs() < 10.0 {
+    if player_grounded.0 && velocity.linvel.x.abs() > 1.0 {
         *player_state = PlayerState::Running;
         return;
     }
-    // Dashing状态
-    if (velocity.linvel.x.abs() - PLAYER_DASH_SPEED).abs() < 1.0 && velocity.linvel.y.abs() < 1.0 {
-        dbg!(velocity.linvel);
-        *player_state = PlayerState::Dashing;
-        return;
-    }
     // Jumping状态
-    // TODO 检测是否在地面
-    if velocity.linvel.y.abs() > 10.0 && *player_state != PlayerState::Climbing  {
+    // TODO 不在爬墙状态
+    if !player_grounded.0 {
         *player_state = PlayerState::Jumping;
         return;
     }
