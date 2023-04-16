@@ -66,8 +66,10 @@ fn main() {
         .insert_resource(PlayerState::Standing)
         .insert_resource(CameraState::Following)
         .insert_resource(PlayerGrounded(false))
+        .insert_resource(PlayerNextTo(None))
         .register_type::<PlayerState>()
         .register_type::<PlayerGrounded>()
+        .register_type::<PlayerNextTo>()
         .add_event::<SpringUpEvent>()
         .add_event::<CameraShakeEvent>()
         .add_event::<DashStartEvent>()
@@ -101,13 +103,14 @@ fn main() {
                 player_jump,
                 player_dash,
                 player_dash_over,
-                player_climb,
+                // player_climb,
                 player_die,
                 despawn_hair.after(player_die),
                 player_revive,
                 spawn_hair.after(player_revive),
                 handle_player_collision,
                 player_grounded_detect,
+                player_next_to_detect,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )

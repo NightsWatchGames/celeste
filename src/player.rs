@@ -35,12 +35,15 @@ pub struct DashOverEvent;
 #[reflect(Resource)]
 pub struct PlayerGrounded(pub bool);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NextToWall {
-    // 墙在左侧
-    LeftWall,
-    // 墙在右侧
-    RightWall,
+// 角色是否挨着左边/右边的东西
+#[derive(Debug, Default, Resource, Reflect)]
+#[reflect(Resource)]
+pub struct PlayerNextTo(pub Option<NextToSomething>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, FromReflect)]
+pub enum NextToSomething {
+    LeftNext,
+    RightNext,
 }
 
 // 玩家死亡
@@ -267,83 +270,83 @@ pub fn player_dash_over(
 }
 
 // 角色爬墙
-pub fn player_climb(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
-    q_terrain: Query<&GlobalTransform, With<Terrain>>,
-    mut collision_er: EventReader<CollisionEvent>,
-    mut player_state: ResMut<PlayerState>,
-    mut next_to_wall: Local<Option<NextToWall>>,
-) {
-    if q_player.is_empty() {
-        return;
-    }
-    // 检测跟左右墙壁的碰撞
-    for collision_event in collision_er.iter() {
-        match collision_event {
-            CollisionEvent::Started(entity1, entity2, _) => {
-                let (player_entity, other_entity) = if q_player.contains(*entity1) {
-                    (*entity1, *entity2)
-                } else if q_player.contains(*entity2) {
-                    (*entity2, *entity1)
-                } else {
-                    continue;
-                };
-                if q_terrain.contains(other_entity) {
-                    let wall_pos = q_terrain
-                        .get_component::<GlobalTransform>(other_entity)
-                        .unwrap()
-                        .translation()
-                        .truncate();
-                    let player_pos = q_player
-                        .get_component::<Transform>(player_entity)
-                        .unwrap()
-                        .translation
-                        .truncate();
-                    if (player_pos.x - wall_pos.x).abs() > TILE_SIZE
-                        && (player_pos.y - wall_pos.y).abs() < TILE_SIZE
-                    {
-                        if player_pos.x > wall_pos.x {
-                            *next_to_wall = Some(NextToWall::LeftWall);
-                        } else {
-                            *next_to_wall = Some(NextToWall::RightWall);
-                        }
-                    }
-                }
-            }
-            CollisionEvent::Stopped(entity1, entity2, _) => {
-                let (player_entity, other_entity) = if q_player.contains(*entity1) {
-                    (*entity1, *entity2)
-                } else if q_player.contains(*entity2) {
-                    (*entity2, *entity1)
-                } else {
-                    continue;
-                };
-                if q_terrain.contains(other_entity) {
-                    *next_to_wall = None;
-                }
-            }
-        }
-    }
-    let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
-    // 面向墙壁 且 挨着墙 且 按下对应方向键
-    if *facing == Facing::Left
-        && keyboard_input.pressed(KeyCode::A)
-        && next_to_wall.is_some()
-        && next_to_wall.as_ref().unwrap() == &NextToWall::LeftWall
-        || *facing == Facing::Right
-            && keyboard_input.pressed(KeyCode::D)
-            && next_to_wall.is_some()
-            && next_to_wall.as_ref().unwrap() == &NextToWall::RightWall
-    {
-        velocity.linvel = Vec2::new(0.0, 0.0);
-        *player_state = PlayerState::Climbing;
-        // TODO 重力为0
-        gravity_scale.0 = 0.0;
-    } else {
-        gravity_scale.0 = PLAYER_GRAVITY_SCALE;
-    }
-}
+// pub fn player_climb(
+//     keyboard_input: Res<Input<KeyCode>>,
+//     mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
+//     q_terrain: Query<&GlobalTransform, With<Terrain>>,
+//     mut collision_er: EventReader<CollisionEvent>,
+//     mut player_state: ResMut<PlayerState>,
+//     mut next_to_wall: Local<Option<NextToWall>>,
+// ) {
+//     if q_player.is_empty() {
+//         return;
+//     }
+//     // 检测跟左右墙壁的碰撞
+//     for collision_event in collision_er.iter() {
+//         match collision_event {
+//             CollisionEvent::Started(entity1, entity2, _) => {
+//                 let (player_entity, other_entity) = if q_player.contains(*entity1) {
+//                     (*entity1, *entity2)
+//                 } else if q_player.contains(*entity2) {
+//                     (*entity2, *entity1)
+//                 } else {
+//                     continue;
+//                 };
+//                 if q_terrain.contains(other_entity) {
+//                     let wall_pos = q_terrain
+//                         .get_component::<GlobalTransform>(other_entity)
+//                         .unwrap()
+//                         .translation()
+//                         .truncate();
+//                     let player_pos = q_player
+//                         .get_component::<Transform>(player_entity)
+//                         .unwrap()
+//                         .translation
+//                         .truncate();
+//                     if (player_pos.x - wall_pos.x).abs() > TILE_SIZE
+//                         && (player_pos.y - wall_pos.y).abs() < TILE_SIZE
+//                     {
+//                         if player_pos.x > wall_pos.x {
+//                             *next_to_wall = Some(NextToWall::LeftWall);
+//                         } else {
+//                             *next_to_wall = Some(NextToWall::RightWall);
+//                         }
+//                     }
+//                 }
+//             }
+//             CollisionEvent::Stopped(entity1, entity2, _) => {
+//                 let (player_entity, other_entity) = if q_player.contains(*entity1) {
+//                     (*entity1, *entity2)
+//                 } else if q_player.contains(*entity2) {
+//                     (*entity2, *entity1)
+//                 } else {
+//                     continue;
+//                 };
+//                 if q_terrain.contains(other_entity) {
+//                     *next_to_wall = None;
+//                 }
+//             }
+//         }
+//     }
+//     let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
+//     // 面向墙壁 且 挨着墙 且 按下对应方向键
+//     if *facing == Facing::Left
+//         && keyboard_input.pressed(KeyCode::A)
+//         && next_to_wall.is_some()
+//         && next_to_wall.as_ref().unwrap() == &NextToWall::LeftWall
+//         || *facing == Facing::Right
+//             && keyboard_input.pressed(KeyCode::D)
+//             && next_to_wall.is_some()
+//             && next_to_wall.as_ref().unwrap() == &NextToWall::RightWall
+//     {
+//         velocity.linvel = Vec2::new(0.0, 0.0);
+//         *player_state = PlayerState::Climbing;
+//         // TODO 重力为0
+//         gravity_scale.0 = 0.0;
+//     } else {
+//         gravity_scale.0 = PLAYER_GRAVITY_SCALE;
+//     }
+// }
 
 // 地面奔跑动画
 pub fn animate_run(
@@ -665,4 +668,31 @@ pub fn player_grounded_detect(
     }
 
     last.0 = (pos.y * 10.).round();
+}
+
+pub fn player_next_to_detect(
+    rapier_context: Res<RapierContext>,
+    q_player: Query<&Transform, With<Player>>,
+    q_terrain: Query<&GlobalTransform, With<Terrain>>,
+    mut player_next_to: ResMut<PlayerNextTo>,
+) {
+    if q_player.is_empty() {
+        return;
+    }
+    let player_pos = q_player.single().translation.truncate();
+    if let Some((entity, toi)) =
+        rapier_context.cast_ray(player_pos + Vec2::new(-TILE_SIZE / 2. - 0.1, 0.), Vec2::NEG_X, 1.0, true, QueryFilter::default())
+    {
+        if q_terrain.contains(entity) {
+            player_next_to.0 = Some(NextToSomething::LeftNext);
+        }
+    } else if let Some((entity, toi)) =
+        rapier_context.cast_ray(player_pos + Vec2::new(TILE_SIZE / 2. + 0.1, 0.), Vec2::X, 1.0, true, QueryFilter::default())
+    {
+        if q_terrain.contains(entity) {
+            player_next_to.0 = Some(NextToSomething::RightNext);
+        }
+    } else {
+        player_next_to.0 = None;
+    }
 }
