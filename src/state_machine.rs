@@ -3,7 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     level::{Facing, Player},
-    player::{DashOverEvent, DashStartEvent, PlayerGrounded},
+    player::{DashOverEvent, DashStartEvent, NextToSomething, PlayerGrounded, PlayerNextTo},
 };
 
 #[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq, Reflect)]
@@ -18,9 +18,11 @@ pub enum PlayerState {
 }
 
 pub fn player_state_machine(
+    keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
     mut player_state: ResMut<PlayerState>,
     player_grounded: Res<PlayerGrounded>,
+    player_next_to: Res<PlayerNextTo>,
     mut dash_start_er: EventReader<DashStartEvent>,
     mut dash_over_er: EventReader<DashOverEvent>,
 ) {
@@ -45,6 +47,17 @@ pub fn player_state_machine(
     if player_grounded.0 && velocity.linvel.x.abs() > 1.0 {
         *player_state = PlayerState::Running;
         return;
+    }
+    // Climbing状态
+    if player_next_to.0.is_some() {
+        if player_next_to.0.unwrap() == NextToSomething::LeftNext
+            && keyboard_input.pressed(KeyCode::A)
+            || player_next_to.0.unwrap() == NextToSomething::RightNext
+                && keyboard_input.pressed(KeyCode::D)
+        {
+            *player_state = PlayerState::Climbing;
+            return;
+        }
     }
     // Jumping状态
     // TODO 不在爬墙状态

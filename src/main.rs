@@ -67,6 +67,7 @@ fn main() {
         .insert_resource(CameraState::Following)
         .insert_resource(PlayerGrounded(false))
         .insert_resource(PlayerNextTo(None))
+        .insert_resource(PlayerCannotMoveTime(0.0))
         .register_type::<PlayerState>()
         .register_type::<PlayerGrounded>()
         .register_type::<PlayerNextTo>()
@@ -100,10 +101,11 @@ fn main() {
         .add_systems(
             (
                 player_run,
+                player_move,
                 player_jump,
                 player_dash,
                 player_dash_over,
-                // player_climb,
+                player_climb,
                 player_die,
                 despawn_hair.after(player_die),
                 player_revive,

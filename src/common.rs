@@ -8,9 +8,14 @@ pub const PLAYER_DASHING_COLOR: Color = Color::rgb(
     173 as f32 / u8::MAX as f32,
     255 as f32 / u8::MAX as f32,
 );
+// 冲刺速度
 pub const PLAYER_DASH_SPEED: f32 = 200.0;
+// 跳跃速度
 pub const PLAYER_JUMP_SPEED: f32 = 300.0;
+// 奔跑
 pub const PLAYER_RUN_SPEED: f32 = 50.0;
+// 滑落速度（攀爬）
+pub const PLAYER_SLIDE_SPEED: f32 = 20.0;
 
 // sprite z轴顺序
 pub const SPRITE_DUST_ORDER: f32 = 2.0;

@@ -8,8 +8,8 @@ use crate::{
     camera::CameraShakeEvent,
     common::{
         AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_DASHING_COLOR, PLAYER_DASH_SPEED,
-        PLAYER_GRAVITY_SCALE, PLAYER_JUMP_SPEED, PLAYER_RUN_SPEED, SPRITE_DUST_ORDER,
-        SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
+        PLAYER_GRAVITY_SCALE, PLAYER_JUMP_SPEED, PLAYER_RUN_SPEED, PLAYER_SLIDE_SPEED,
+        SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
     level::{Facing, Player, PlayerBundle, Snowdrift, Terrain, Trap, LEVEL_TRANSLATION_OFFSET},
     state_machine::PlayerState,
@@ -34,6 +34,9 @@ pub struct DashOverEvent;
 #[derive(Debug, Default, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct PlayerGrounded(pub bool);
+
+#[derive(Debug, Default, Resource)]
+pub struct PlayerCannotMoveTime(pub f32);
 
 // 角色是否挨着左边/右边的东西
 #[derive(Debug, Default, Resource, Reflect)]
@@ -147,23 +150,65 @@ pub fn spawn_player(
     });
 }
 
-// 角色奔跑/移动
+// 角色奔跑
 pub fn player_run(
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
-    if *player_state == PlayerState::Dashing {
+    if q_player.is_empty() {
         return;
     }
-    for (mut velocity, mut facing) in &mut q_player {
+    if *player_state == PlayerState::Running || *player_state == PlayerState::Standing {
+        let (mut velocity, mut facing) = q_player.single_mut();
         if keyboard_input.pressed(KeyCode::A) {
             velocity.linvel.x = -PLAYER_RUN_SPEED;
             *facing = Facing::Left;
         } else if keyboard_input.pressed(KeyCode::D) {
             velocity.linvel.x = PLAYER_RUN_SPEED;
             *facing = Facing::Right;
+        } else {
+            // 不按键时停止左右奔跑
+            velocity.linvel.x = 0.0;
+        }
+    }
+}
+
+// 角色左右移动（空中）
+pub fn player_move(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
+    player_state: Res<PlayerState>,
+    player_next_to: Res<PlayerNextTo>,
+    mut player_cannot_move_time: ResMut<PlayerCannotMoveTime>,
+    time: Res<Time>,
+) {
+    if player_cannot_move_time.0 > 0.0 {
+        player_cannot_move_time.0 -= time.delta_seconds();
+    }
+    if q_player.is_empty() {
+        return;
+    }
+    if player_cannot_move_time.0 > 0.0 {
+        // 无法移动
+        return;
+    }
+    if *player_state == PlayerState::Jumping || *player_state == PlayerState::Climbing {
+        let (mut velocity, mut facing) = q_player.single_mut();
+        if keyboard_input.pressed(KeyCode::A) {
+            *facing = Facing::Left;
+            if player_next_to.0.is_some() && player_next_to.0.unwrap() == NextToSomething::LeftNext
+            {
+            } else {
+                velocity.linvel.x = -PLAYER_RUN_SPEED;
+            }
         } else if keyboard_input.pressed(KeyCode::D) {
+            *facing = Facing::Right;
+            if player_next_to.0.is_some() && player_next_to.0.unwrap() == NextToSomething::RightNext
+            {
+            } else {
+                velocity.linvel.x = PLAYER_RUN_SPEED;
+            }
         } else {
             // 不按键时停止左右移动
             velocity.linvel.x = 0.0;
@@ -179,22 +224,32 @@ pub fn player_jump(
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
     player_state: Res<PlayerState>,
+    mut player_cannot_move_time: ResMut<PlayerCannotMoveTime>,
 ) {
-    for (mut velocity, transform) in &mut q_player {
-        // 角色在Jumping/Dashing状态不能跳跃
+    if q_player.is_empty() {
+        return;
+    }
+    if *player_state == PlayerState::Standing
+        || *player_state == PlayerState::Running
+        || *player_state == PlayerState::Climbing
+    {
+        let (mut velocity, transform) = q_player.single_mut();
         // TODO 可允许角色在非跳跃进入下坠状态时能够进行跳跃
-        if keyboard_input.just_pressed(KeyCode::K)
-            && *player_state != PlayerState::Jumping
-            && *player_state != PlayerState::Dashing
-        {
-            velocity.linvel = Vec2::new(0.0, PLAYER_JUMP_SPEED);
+        if keyboard_input.just_pressed(KeyCode::K) {
+            if *player_state == PlayerState::Climbing {
+                // 蹬墙跳
+                velocity.linvel = Vec2::new(100., 200.);
+                player_cannot_move_time.0 = 0.2;
+            } else {
+                velocity.linvel = Vec2::new(0.0, PLAYER_JUMP_SPEED);
+            }
             spawn_dust(
                 &mut commands,
                 &mut texture_atlases,
                 &asset_server,
                 transform.translation.truncate(),
                 Color::default(),
-            )
+            );
         }
     }
 }
@@ -270,83 +325,30 @@ pub fn player_dash_over(
 }
 
 // 角色爬墙
-// pub fn player_climb(
-//     keyboard_input: Res<Input<KeyCode>>,
-//     mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
-//     q_terrain: Query<&GlobalTransform, With<Terrain>>,
-//     mut collision_er: EventReader<CollisionEvent>,
-//     mut player_state: ResMut<PlayerState>,
-//     mut next_to_wall: Local<Option<NextToWall>>,
-// ) {
-//     if q_player.is_empty() {
-//         return;
-//     }
-//     // 检测跟左右墙壁的碰撞
-//     for collision_event in collision_er.iter() {
-//         match collision_event {
-//             CollisionEvent::Started(entity1, entity2, _) => {
-//                 let (player_entity, other_entity) = if q_player.contains(*entity1) {
-//                     (*entity1, *entity2)
-//                 } else if q_player.contains(*entity2) {
-//                     (*entity2, *entity1)
-//                 } else {
-//                     continue;
-//                 };
-//                 if q_terrain.contains(other_entity) {
-//                     let wall_pos = q_terrain
-//                         .get_component::<GlobalTransform>(other_entity)
-//                         .unwrap()
-//                         .translation()
-//                         .truncate();
-//                     let player_pos = q_player
-//                         .get_component::<Transform>(player_entity)
-//                         .unwrap()
-//                         .translation
-//                         .truncate();
-//                     if (player_pos.x - wall_pos.x).abs() > TILE_SIZE
-//                         && (player_pos.y - wall_pos.y).abs() < TILE_SIZE
-//                     {
-//                         if player_pos.x > wall_pos.x {
-//                             *next_to_wall = Some(NextToWall::LeftWall);
-//                         } else {
-//                             *next_to_wall = Some(NextToWall::RightWall);
-//                         }
-//                     }
-//                 }
-//             }
-//             CollisionEvent::Stopped(entity1, entity2, _) => {
-//                 let (player_entity, other_entity) = if q_player.contains(*entity1) {
-//                     (*entity1, *entity2)
-//                 } else if q_player.contains(*entity2) {
-//                     (*entity2, *entity1)
-//                 } else {
-//                     continue;
-//                 };
-//                 if q_terrain.contains(other_entity) {
-//                     *next_to_wall = None;
-//                 }
-//             }
-//         }
-//     }
-//     let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
-//     // 面向墙壁 且 挨着墙 且 按下对应方向键
-//     if *facing == Facing::Left
-//         && keyboard_input.pressed(KeyCode::A)
-//         && next_to_wall.is_some()
-//         && next_to_wall.as_ref().unwrap() == &NextToWall::LeftWall
-//         || *facing == Facing::Right
-//             && keyboard_input.pressed(KeyCode::D)
-//             && next_to_wall.is_some()
-//             && next_to_wall.as_ref().unwrap() == &NextToWall::RightWall
-//     {
-//         velocity.linvel = Vec2::new(0.0, 0.0);
-//         *player_state = PlayerState::Climbing;
-//         // TODO 重力为0
-//         gravity_scale.0 = 0.0;
-//     } else {
-//         gravity_scale.0 = PLAYER_GRAVITY_SCALE;
-//     }
-// }
+pub fn player_climb(
+    mut q_player: Query<(&mut Velocity, &mut GravityScale), With<Player>>,
+    player_state: Res<PlayerState>,
+    mut last_player_state: Local<PlayerState>,
+) {
+    if q_player.is_empty() {
+        return;
+    }
+    let (mut velocity, mut gravity_scale) = q_player.single_mut();
+    // 进入Climbing
+    if *player_state == PlayerState::Climbing && *last_player_state != PlayerState::Climbing {
+        // 向下滑动
+        velocity.linvel = Vec2::new(0.0, -PLAYER_SLIDE_SPEED);
+        // 重力为0
+        gravity_scale.0 = 0.0;
+    }
+
+    // 退出Climbing
+    if *player_state != PlayerState::Climbing && *last_player_state == PlayerState::Climbing {
+        gravity_scale.0 = PLAYER_GRAVITY_SCALE;
+    }
+
+    *last_player_state = *player_state;
+}
 
 // 地面奔跑动画
 pub fn animate_run(
@@ -680,15 +682,23 @@ pub fn player_next_to_detect(
         return;
     }
     let player_pos = q_player.single().translation.truncate();
-    if let Some((entity, toi)) =
-        rapier_context.cast_ray(player_pos + Vec2::new(-TILE_SIZE / 2. - 0.1, 0.), Vec2::NEG_X, 1.0, true, QueryFilter::default())
-    {
+    if let Some((entity, toi)) = rapier_context.cast_ray(
+        player_pos + Vec2::new(-TILE_SIZE / 2. - 0.1, 0.),
+        Vec2::NEG_X,
+        1.0,
+        true,
+        QueryFilter::default(),
+    ) {
         if q_terrain.contains(entity) {
             player_next_to.0 = Some(NextToSomething::LeftNext);
         }
-    } else if let Some((entity, toi)) =
-        rapier_context.cast_ray(player_pos + Vec2::new(TILE_SIZE / 2. + 0.1, 0.), Vec2::X, 1.0, true, QueryFilter::default())
-    {
+    } else if let Some((entity, toi)) = rapier_context.cast_ray(
+        player_pos + Vec2::new(TILE_SIZE / 2. + 0.1, 0.),
+        Vec2::X,
+        1.0,
+        true,
+        QueryFilter::default(),
+    ) {
         if q_terrain.contains(entity) {
             player_next_to.0 = Some(NextToSomething::RightNext);
         }
