@@ -60,7 +60,6 @@ pub fn player_state_machine(
         }
     }
     // Jumping状态
-    // TODO 不在爬墙状态
     if !player_grounded.0 {
         *player_state = PlayerState::Jumping;
         return;

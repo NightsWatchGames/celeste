@@ -91,6 +91,7 @@ fn main() {
             (
                 spring_up,
                 snowdrift_broken,
+                wooden_stand_through,
                 aninmate_spring,
                 animate_balloon_rope,
                 camera_follow,
