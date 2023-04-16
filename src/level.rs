@@ -6,7 +6,7 @@ use crate::{
     common::{
         AnimationBundle, AnimationIndices, AnimationTimer, AppState, PLAYER_JUMP_SPEED, TILE_SIZE,
     },
-    player::{self, spawn_dust, spawn_player},
+    player::{spawn_dust, spawn_player, Facing},
     state_machine::PlayerState,
 };
 
@@ -33,14 +33,6 @@ pub struct Terrain;
 // 玩家
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Player;
-
-// 脸朝向
-#[derive(Debug, Component, Clone, Copy, Default, PartialEq, Eq)]
-pub enum Facing {
-    Left,
-    #[default]
-    Right,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SpringUpEvent {
@@ -251,7 +243,7 @@ pub fn spawn_ldtk_entity(
                     rigid_body: RigidBody::Fixed,
                     restitution: Restitution::new(0.),
                     active_events: ActiveEvents::COLLISION_EVENTS,
-                }
+                },
             });
         }
         if entity_instance.identifier == *"Player" && q_player.is_empty() {
@@ -360,6 +352,7 @@ pub fn snowdrift_broken(
 // 木架
 pub fn wooden_stand_through(
     mut commands: Commands,
+    keyboard_input: Res<Input<KeyCode>>,
     q_player: Query<&Transform, With<Player>>,
     q_wooden_stand: Query<(), With<WoodenStand>>,
     rapier_context: Res<RapierContext>,
@@ -371,7 +364,7 @@ pub fn wooden_stand_through(
     if let Some((entity, toi)) = rapier_context.cast_ray(
         player_pos + Vec2::new(0., TILE_SIZE / 2. + 0.1),
         Vec2::NEG_X,
-        1.0,
+        4.0,
         true,
         QueryFilter::default(),
     ) {
@@ -381,12 +374,16 @@ pub fn wooden_stand_through(
     } else if let Some((entity, toi)) = rapier_context.cast_ray(
         player_pos + Vec2::new(0., -TILE_SIZE / 2. - 0.1),
         Vec2::X,
-        1.0,
+        4.0,
         true,
         QueryFilter::default(),
     ) {
         if q_wooden_stand.contains(entity) {
-            commands.entity(entity).remove::<Sensor>();
+            if keyboard_input.pressed(KeyCode::S) && keyboard_input.pressed(KeyCode::K) {
+                commands.entity(entity).insert(Sensor);
+            } else {
+                commands.entity(entity).remove::<Sensor>();
+            }
         }
     }
 }

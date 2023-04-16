@@ -11,9 +11,17 @@ use crate::{
         PLAYER_GRAVITY_SCALE, PLAYER_JUMP_SPEED, PLAYER_RUN_SPEED, PLAYER_SLIDE_SPEED,
         SPRITE_DUST_ORDER, SPRITE_HAIR_ORDER, SPRITE_PLAYER_ORDER, TILE_SIZE,
     },
-    level::{Facing, Player, PlayerBundle, Snowdrift, Terrain, Trap, LEVEL_TRANSLATION_OFFSET},
+    level::{Player, PlayerBundle, Snowdrift, Terrain, Trap, LEVEL_TRANSLATION_OFFSET},
     state_machine::PlayerState,
 };
+
+// 脸朝向
+#[derive(Debug, Component, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Facing {
+    Left,
+    #[default]
+    Right,
+}
 
 // 角色头发
 #[derive(Debug, Component, Clone, Copy, Default)]
@@ -153,20 +161,18 @@ pub fn spawn_player(
 // 角色奔跑
 pub fn player_run(
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
+    mut q_player: Query<&mut Velocity, With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if q_player.is_empty() {
         return;
     }
     if *player_state == PlayerState::Running || *player_state == PlayerState::Standing {
-        let (mut velocity, mut facing) = q_player.single_mut();
+        let mut velocity = q_player.single_mut();
         if keyboard_input.pressed(KeyCode::A) {
             velocity.linvel.x = -PLAYER_RUN_SPEED;
-            *facing = Facing::Left;
         } else if keyboard_input.pressed(KeyCode::D) {
             velocity.linvel.x = PLAYER_RUN_SPEED;
-            *facing = Facing::Right;
         } else {
             // 不按键时停止左右奔跑
             velocity.linvel.x = 0.0;
@@ -177,7 +183,7 @@ pub fn player_run(
 // 角色左右移动（空中）
 pub fn player_move(
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
+    mut q_player: Query<&mut Velocity, With<Player>>,
     player_state: Res<PlayerState>,
     player_next_to: Res<PlayerNextTo>,
     mut player_cannot_move_time: ResMut<PlayerCannotMoveTime>,
@@ -194,16 +200,14 @@ pub fn player_move(
         return;
     }
     if *player_state == PlayerState::Jumping || *player_state == PlayerState::Climbing {
-        let (mut velocity, mut facing) = q_player.single_mut();
+        let mut velocity = q_player.single_mut();
         if keyboard_input.pressed(KeyCode::A) {
-            *facing = Facing::Left;
             if player_next_to.0.is_some() && player_next_to.0.unwrap() == NextToSomething::LeftNext
             {
             } else {
                 velocity.linvel.x = -PLAYER_RUN_SPEED;
             }
         } else if keyboard_input.pressed(KeyCode::D) {
-            *facing = Facing::Right;
             if player_next_to.0.is_some() && player_next_to.0.unwrap() == NextToSomething::RightNext
             {
             } else {
@@ -224,6 +228,7 @@ pub fn player_jump(
     keyboard_input: Res<Input<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
     player_state: Res<PlayerState>,
+    player_next_to: Res<PlayerNextTo>,
     mut player_cannot_move_time: ResMut<PlayerCannotMoveTime>,
 ) {
     if q_player.is_empty() {
@@ -236,9 +241,22 @@ pub fn player_jump(
         let (mut velocity, transform) = q_player.single_mut();
         // TODO 可允许角色在非跳跃进入下坠状态时能够进行跳跃
         if keyboard_input.just_pressed(KeyCode::K) {
+            if keyboard_input.pressed(KeyCode::S) {
+                // 同时按下和跳跃键，不向上跳
+                return;
+            }
             if *player_state == PlayerState::Climbing {
                 // 蹬墙跳
-                velocity.linvel = Vec2::new(100., 200.);
+                if player_next_to.0.is_some()
+                    && player_next_to.0.unwrap() == NextToSomething::LeftNext
+                {
+                    velocity.linvel = Vec2::new(100., 200.);
+                }
+                if player_next_to.0.is_some()
+                    && player_next_to.0.unwrap() == NextToSomething::RightNext
+                {
+                    velocity.linvel = Vec2::new(-100., 200.);
+                }
                 player_cannot_move_time.0 = 0.2;
             } else {
                 velocity.linvel = Vec2::new(0.0, PLAYER_JUMP_SPEED);
@@ -704,5 +722,17 @@ pub fn player_next_to_detect(
         }
     } else {
         player_next_to.0 = None;
+    }
+}
+
+pub fn player_facing_update(mut q_player: Query<(&Velocity, &mut Facing), With<Player>>) {
+    if q_player.is_empty() {
+        return;
+    }
+    let (velocity, mut facing) = q_player.single_mut();
+    if velocity.linvel.x > 0. {
+        *facing = Facing::Right;
+    } else if velocity.linvel.x < 0. {
+        *facing = Facing::Left;
     }
 }

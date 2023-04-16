@@ -2,8 +2,10 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    level::{Facing, Player},
-    player::{DashOverEvent, DashStartEvent, NextToSomething, PlayerGrounded, PlayerNextTo},
+    level::Player,
+    player::{
+        DashOverEvent, DashStartEvent, Facing, NextToSomething, PlayerGrounded, PlayerNextTo,
+    },
 };
 
 #[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq, Reflect)]
@@ -19,7 +21,7 @@ pub enum PlayerState {
 
 pub fn player_state_machine(
     keyboard_input: Res<Input<KeyCode>>,
-    mut q_player: Query<(&mut Velocity, &mut Facing), With<Player>>,
+    q_player: Query<&Velocity, With<Player>>,
     mut player_state: ResMut<PlayerState>,
     player_grounded: Res<PlayerGrounded>,
     player_next_to: Res<PlayerNextTo>,
@@ -37,7 +39,7 @@ pub fn player_state_machine(
         // 持续保持dashing状态直至接收到DashOverEvent
         return;
     }
-    let (mut velocity, mut facing) = q_player.single_mut();
+    let velocity = q_player.single();
     // Standing状态
     if player_grounded.0 && velocity.linvel.x.abs() < 0.1 {
         *player_state = PlayerState::Standing;

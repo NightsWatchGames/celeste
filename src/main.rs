@@ -114,6 +114,7 @@ fn main() {
                 handle_player_collision,
                 player_grounded_detect,
                 player_next_to_detect,
+                player_facing_update,
             )
                 .in_set(OnUpdate(AppState::Gaming)),
         )
