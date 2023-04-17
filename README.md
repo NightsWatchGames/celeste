@@ -30,6 +30,10 @@ cargo build --release --target wasm32-unknown-unknown
 wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/celeste.wasm
 ```
 
+## 游戏展示
+![](screenshots/start-menu.png)
+![](screenshots/play-game.png)
+
 ## 参考
 - [Celeste Official source project](https://github.com/NoelFB/Celeste)
 - [U3D教程实现《蔚蓝 Celeste 》Movement 系统](https://www.bilibili.com/video/BV1D4411d7Xn)
