@@ -1,3 +1,5 @@
+[English](README_EN.md)
+
 # celeste 蔚蓝经典平台跳跃游戏
 - [x] Aseprite软件设计像素美术
 - [x] Ldtk软件编辑关卡
