@@ -1,4 +1,4 @@
-# celeste 模仿蔚蓝的平台跳跃游戏
+# celeste 蔚蓝经典平台跳跃游戏
 - [x] Aseprite软件设计像素美术
 - [x] Ldtk软件编辑关卡
 - [x] 加载关卡
