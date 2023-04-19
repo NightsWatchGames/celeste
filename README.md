@@ -32,6 +32,11 @@ cargo build --release --target wasm32-unknown-unknown --features bevy_ecs_ldtk/a
 wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/celeste.wasm
 ```
 
+## 控制
+- `A` `D` 移动
+- `K` 跳跃
+- `J` 冲刺
+
 ## 游戏展示
 ![](screenshots/start-menu.png)
 ![](screenshots/play-game.png)

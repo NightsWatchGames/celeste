@@ -30,6 +30,11 @@ cargo build --release --target wasm32-unknown-unknown
 wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/celeste.wasm
 ```
 
+## Control
+- `A` `D` Move
+- `K` Jump
+- `J` Dash
+
 ## Screenshots
 ![](screenshots/start-menu.png)
 ![](screenshots/play-game.png)
