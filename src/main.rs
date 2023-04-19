@@ -45,9 +45,9 @@ fn main() {
     )
     .add_plugin(FrameTimeDiagnosticsPlugin)
     .add_plugin(LogDiagnosticsPlugin::default())
-    .add_plugin(WorldInspectorPlugin::new())
+    // .add_plugin(WorldInspectorPlugin::new())
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
-    .add_plugin(RapierDebugRenderPlugin::default())
+    // .add_plugin(RapierDebugRenderPlugin::default())
     .add_plugin(LdtkPlugin);
 
     #[cfg(not(target_arch = "wasm32"))]

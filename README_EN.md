@@ -7,11 +7,11 @@
 - [x] Character climb wall
 - [x] Character die and animation
 - [x] Character hair effect
-- [x] Spring, snow, trap, wood
+- [x] Spring, snow, trap, wooden-stand
 - [x] Weather effect
-- [x] Camera follow character
+- [x] Camera follows character
 - [x] Game ui
-- [ ] WASM support
+- [x] WASM support
 
 ## Get started
 1. native

@@ -520,6 +520,7 @@ pub fn handle_player_collision(
     mut collision_er: EventReader<CollisionEvent>,
     mut dash_over_ew: EventWriter<DashOverEvent>,
     player_state: Res<PlayerState>,
+    mut player_cannot_move_time: ResMut<PlayerCannotMoveTime>,
 ) {
     if q_player.is_empty() {
         return;
@@ -527,6 +528,8 @@ pub fn handle_player_collision(
     for collision in collision_er.iter() {
         match collision {
             CollisionEvent::Started(entity1, entity2, _) => {
+                // 蹬墙跳后产生碰撞时，立刻解除不能移动的限制
+                player_cannot_move_time.0 = 0.0;
                 let (player_entity, other_entity) = if q_player.contains(*entity1) {
                     (*entity1, *entity2)
                 } else if q_player.contains(*entity2) {

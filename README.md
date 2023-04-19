@@ -13,7 +13,7 @@
 - [x] 天气效果
 - [x] 相机跟随角色
 - [x] 游戏ui
-- [ ] WASM支持
+- [x] WASM支持
 
 ## 运行
 1. 本地运行
@@ -24,11 +24,11 @@ cargo run
 ```
 rustup target install wasm32-unknown-unknown
 cargo install wasm-server-runner
-cargo run --target wasm32-unknown-unknown
+cargo run --target wasm32-unknown-unknown --features bevy_ecs_ldtk/atlas
 ```
 ```
 cargo install wasm-bindgen-cli
-cargo build --release --target wasm32-unknown-unknown
+cargo build --release --target wasm32-unknown-unknown --features bevy_ecs_ldtk/atlas
 wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/celeste.wasm
 ```
 

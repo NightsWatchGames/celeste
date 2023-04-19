@@ -361,20 +361,21 @@ pub fn wooden_stand_through(
         return;
     }
     let player_pos = q_player.single().translation.truncate();
-    if let Some((entity, toi)) = rapier_context.cast_ray(
+    let max_toi = 6.0;
+    if let Some((entity, _toi)) = rapier_context.cast_ray(
         player_pos + Vec2::new(0., TILE_SIZE / 2. + 0.1),
         Vec2::NEG_X,
-        4.0,
+        max_toi,
         true,
         QueryFilter::default(),
     ) {
         if q_wooden_stand.contains(entity) {
             commands.entity(entity).insert(Sensor);
         }
-    } else if let Some((entity, toi)) = rapier_context.cast_ray(
+    } else if let Some((entity, _toi)) = rapier_context.cast_ray(
         player_pos + Vec2::new(0., -TILE_SIZE / 2. - 0.1),
         Vec2::X,
-        4.0,
+        max_toi,
         true,
         QueryFilter::default(),
     ) {
