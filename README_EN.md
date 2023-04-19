@@ -38,6 +38,7 @@ wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/relea
 - `J` Dash
 
 ## Screenshots
+Game video: [YouTube](https://www.youtube.com/watch?v=Zcou6M_sQKc)
 ![](screenshots/start-menu.png)
 ![](screenshots/play-game.png)
 

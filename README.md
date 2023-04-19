@@ -40,6 +40,7 @@ wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/relea
 - `J` 冲刺
 
 ## 游戏展示
+视频演示：[B站](https://www.bilibili.com/video/BV14v4y1n7qk)
 ![](screenshots/start-menu.png)
 ![](screenshots/play-game.png)
 
