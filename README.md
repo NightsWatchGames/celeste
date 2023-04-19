@@ -44,11 +44,15 @@ wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/relea
 ![](screenshots/start-menu.png)
 ![](screenshots/play-game.png)
 
+## 感谢
+- @littlekite 添加天气效果
+
 ## 参考
 - [Celeste Official source project](https://github.com/NoelFB/Celeste)
 - [U3D教程实现《蔚蓝 Celeste 》Movement 系统](https://www.bilibili.com/video/BV1D4411d7Xn)
 - [casuak/Game_1_Tiny_Celeste_v3](https://github.com/casuak/Game_1_Tiny_Celeste_v3)
 - [LDtk一小时完全入门教程](https://www.bilibili.com/video/BV1y64y1z7Uw)
+
 
 ## 问题
 **1.像素完美 (Pixel Perfect) 是什么意思？**

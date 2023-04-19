@@ -42,6 +42,9 @@ Game video: [YouTube](https://www.youtube.com/watch?v=Zcou6M_sQKc)
 ![](screenshots/start-menu.png)
 ![](screenshots/play-game.png)
 
+## Thanks
+- @littlekite for adding weather effect
+
 ## Reference
 - [Celeste Official source project](https://github.com/NoelFB/Celeste)
 - [U3D教程实现《蔚蓝 Celeste 》Movement 系统](https://www.bilibili.com/video/BV1D4411d7Xn)
