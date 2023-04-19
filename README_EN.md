@@ -13,6 +13,8 @@
 - [x] Game ui
 - [x] WASM support
 
+Play online: [click here](https://nightswatchgames.github.io/games/celeste/)（Open with PC Chrome/Firefox/Edge）
+
 ## Get started
 1. native
 ```

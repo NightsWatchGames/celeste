@@ -15,6 +15,8 @@
 - [x] 游戏ui
 - [x] WASM支持
 
+在线游玩：[点这里](https://nightswatchgames.github.io/games/celeste/)（电脑版Chrome/Firefox/Edge打开）
+
 ## 运行
 1. 本地运行
 ```
