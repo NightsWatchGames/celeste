@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, default};
+use std::collections::VecDeque;
 
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
@@ -32,10 +32,10 @@ pub struct Hair;
 pub struct Dust;
 
 // 冲刺开始事件
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Event)]
 pub struct DashStartEvent;
 // 冲刺结束事件
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Event)]
 pub struct DashOverEvent;
 
 // 角色是否在地面上
@@ -51,7 +51,7 @@ pub struct PlayerCannotMoveTime(pub f32);
 #[reflect(Resource)]
 pub struct PlayerNextTo(pub Option<NextToSomething>);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, FromReflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum NextToSomething {
     LeftNext,
     RightNext,
@@ -514,7 +514,6 @@ pub fn despawn_hair(
 }
 
 pub fn handle_player_collision(
-    mut commands: Commands,
     mut q_player: Query<(&mut Velocity, &mut GravityScale), With<Player>>,
     q_snowdrift: Query<(), With<Snowdrift>>,
     mut collision_er: EventReader<CollisionEvent>,
@@ -530,7 +529,7 @@ pub fn handle_player_collision(
             CollisionEvent::Started(entity1, entity2, _) => {
                 // 蹬墙跳后产生碰撞时，立刻解除不能移动的限制
                 player_cannot_move_time.0 = 0.0;
-                let (player_entity, other_entity) = if q_player.contains(*entity1) {
+                let (_player_entity, other_entity) = if q_player.contains(*entity1) {
                     (*entity1, *entity2)
                 } else if q_player.contains(*entity2) {
                     (*entity2, *entity1)
@@ -703,7 +702,7 @@ pub fn player_next_to_detect(
         return;
     }
     let player_pos = q_player.single().translation.truncate();
-    if let Some((entity, toi)) = rapier_context.cast_ray(
+    if let Some((entity, _toi)) = rapier_context.cast_ray(
         player_pos + Vec2::new(-TILE_SIZE / 2. - 0.1, 0.),
         Vec2::NEG_X,
         1.0,
@@ -713,7 +712,7 @@ pub fn player_next_to_detect(
         if q_terrain.contains(entity) {
             player_next_to.0 = Some(NextToSomething::LeftNext);
         }
-    } else if let Some((entity, toi)) = rapier_context.cast_ray(
+    } else if let Some((entity, _toi)) = rapier_context.cast_ray(
         player_pos + Vec2::new(TILE_SIZE / 2. + 0.1, 0.),
         Vec2::X,
         1.0,

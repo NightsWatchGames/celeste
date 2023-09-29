@@ -1,11 +1,5 @@
-use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    prelude::*,
-    render::texture::ImageSampler,
-    window::WindowResolution,
-};
+use bevy::{prelude::*, render::texture::ImageSampler, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier2d::prelude::*;
 
 use camera::*;
@@ -43,26 +37,18 @@ fn main() {
                 ..default()
             }),
     )
-    .add_plugin(FrameTimeDiagnosticsPlugin)
-    .add_plugin(LogDiagnosticsPlugin::default())
-    // .add_plugin(WorldInspectorPlugin::new())
-    .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
+    .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
     // .add_plugin(RapierDebugRenderPlugin::default())
-    .add_plugin(LdtkPlugin);
+    .add_plugins(LdtkPlugin);
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        app.add_plugin(WeatherPlugin);
+        app.add_plugins(WeatherPlugin);
     }
 
     app.add_state::<AppState>()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(LevelSelection::Index(0))
-        .insert_resource(LdtkSettings {
-            //设置背景透明
-            level_background: LevelBackground::Nonexistent,
-            ..Default::default()
-        })
         .insert_resource(PlayerState::Standing)
         .insert_resource(CameraState::Following)
         .insert_resource(PlayerGrounded(false))
@@ -75,19 +61,22 @@ fn main() {
         .add_event::<CameraShakeEvent>()
         .add_event::<DashStartEvent>()
         .add_event::<DashOverEvent>()
-        .add_startup_system(setup_camera)
+        .add_systems(Startup, (setup_camera,))
         // Start Menu
-        .add_system(setup_start_menu.in_schedule(OnEnter(AppState::StartMenu)))
-        .add_system(enter_gaming.in_set(OnUpdate(AppState::StartMenu)))
-        .add_system(cleanup_start_menu.in_schedule(OnExit(AppState::StartMenu)))
+        .add_systems(OnEnter(AppState::StartMenu), (setup_start_menu,))
+        .add_systems(
+            Update,
+            (enter_gaming,).run_if(in_state(AppState::StartMenu)),
+        )
+        .add_systems(OnExit(AppState::StartMenu), (cleanup_start_menu,))
         // Gaming
-        .add_system(setup_ldtk_world.in_schedule(OnEnter(AppState::Gaming)))
-        .add_system(
-            spawn_ldtk_entity
-                .in_base_set(CoreSet::PreUpdate)
-                .run_if(in_state(AppState::Gaming)),
+        .add_systems(OnEnter(AppState::Gaming), (setup_ldtk_world,))
+        .add_systems(
+            PreUpdate,
+            (spawn_ldtk_entity,).run_if(in_state(AppState::Gaming)),
         )
         .add_systems(
+            Update,
             (
                 spring_up,
                 snowdrift_broken,
@@ -96,18 +85,15 @@ fn main() {
                 animate_balloon_rope,
                 camera_follow,
                 camera_shake,
-            )
-                .in_set(OnUpdate(AppState::Gaming)),
-        )
-        .add_systems(
-            (
-                player_run,
-                player_move,
-                player_jump,
-                player_dash,
-                player_dash_over,
-                player_climb,
-                player_die,
+                (
+                    player_run,
+                    player_move,
+                    player_jump,
+                    player_dash,
+                    player_dash_over,
+                    player_climb,
+                    player_die,
+                ),
                 despawn_hair.after(player_die),
                 player_revive,
                 spawn_hair.after(player_revive),
@@ -115,25 +101,20 @@ fn main() {
                 player_grounded_detect,
                 player_next_to_detect,
                 player_facing_update,
+                (
+                    animate_run,
+                    animate_jump,
+                    animate_stand,
+                    animate_dash,
+                    animate_hair,
+                    animate_dust,
+                ),
             )
-                .in_set(OnUpdate(AppState::Gaming)),
+                .run_if(in_state(AppState::Gaming)),
         )
         .add_systems(
-            (
-                animate_run,
-                animate_jump,
-                animate_stand,
-                animate_dash,
-                animate_hair,
-                animate_dust,
-            )
-                .in_set(OnUpdate(AppState::Gaming)),
-        )
-        // TODO 下一版本可简化
-        .add_systems(
-            (player_state_machine,)
-                .in_base_set(CoreSet::PostUpdate)
-                .distributive_run_if(in_gaming_state),
+            PostUpdate,
+            (player_state_machine,).run_if(in_state(AppState::Gaming)),
         )
         .register_ldtk_int_cell::<TerrainBundle>(1)
         .register_ldtk_entity::<SpringBundle>("Spring")

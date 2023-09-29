@@ -8,7 +8,7 @@ const CAMERA_MIN_MOVE_DISTANCE: f32 = 0.1;
 // 每帧逼近剩余距离的百分比
 const CAMERA_MOVE_INTERPOLATE: f32 = 0.05;
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Event)]
 pub struct CameraShakeEvent;
 
 #[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq)]

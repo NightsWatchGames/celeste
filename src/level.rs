@@ -3,9 +3,7 @@ use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    common::{
-        AnimationBundle, AnimationIndices, AnimationTimer, AppState, PLAYER_JUMP_SPEED, TILE_SIZE,
-    },
+    common::{AnimationBundle, AnimationIndices, AnimationTimer, PLAYER_JUMP_SPEED, TILE_SIZE},
     player::{spawn_dust, spawn_player, Facing},
     state_machine::PlayerState,
 };
@@ -34,7 +32,7 @@ pub struct Terrain;
 #[derive(Debug, Component, Clone, Copy, Default)]
 pub struct Player;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Event)]
 pub struct SpringUpEvent {
     entity: Entity,
 }
@@ -58,7 +56,6 @@ pub struct SensorBundle {
 pub struct TerrainBundle {
     pub terrain: Terrain,
     #[from_int_grid_cell]
-    #[bundle]
     pub collider_bundle: ColliderBundle,
 }
 
@@ -66,13 +63,10 @@ pub struct TerrainBundle {
 pub struct SpringBundle {
     pub spring: Spring,
     #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 19)]
-    #[bundle]
     sprite_bundle: SpriteSheetBundle,
     #[from_entity_instance]
-    #[bundle]
     sensor_bundle: SensorBundle,
     #[from_entity_instance]
-    #[bundle]
     animation_bundle: AnimationBundle,
 }
 
@@ -80,10 +74,8 @@ pub struct SpringBundle {
 pub struct TrapBundle {
     pub trap: Trap,
     #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 17)]
-    #[bundle]
     sprite_bundle: SpriteSheetBundle,
     #[from_entity_instance]
-    #[bundle]
     sensor_bundle: SensorBundle,
 }
 
@@ -91,7 +83,6 @@ pub struct TrapBundle {
 pub struct WoodenStandBundle {
     pub wooden_stand: WoodenStand,
     sprite_bundle: SpriteSheetBundle,
-    #[bundle]
     collider_bundle: ColliderBundle,
 }
 
@@ -99,10 +90,8 @@ pub struct WoodenStandBundle {
 pub struct SnowdriftBundle {
     pub snowdrift: Snowdrift,
     #[sprite_sheet_bundle("textures/atlas.png", 16.0, 16.0, 8, 5, 0.0, 0.0, 16)]
-    #[bundle]
     sprite_bundle: SpriteSheetBundle,
     #[from_entity_instance]
-    #[bundle]
     pub collider_bundle: ColliderBundle,
 }
 
@@ -110,19 +99,15 @@ pub struct SnowdriftBundle {
 pub struct BalloonRopeBundle {
     pub balloon_rope: BalloonRope,
     #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 13)]
-    #[bundle]
     sprite_bundle: SpriteSheetBundle,
     #[from_entity_instance]
-    #[bundle]
     animation_bundle: AnimationBundle,
 }
 
 #[derive(Clone, Default, Bundle)]
 pub struct PlayerBundle {
     pub player: Player,
-    #[bundle]
     pub sprite_bundle: SpriteSheetBundle,
-    #[bundle]
     pub animation_bundle: AnimationBundle,
     pub facing: Facing,
     pub collider: Collider,
@@ -213,7 +198,7 @@ pub fn spawn_ldtk_entity(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     asset_server: Res<AssetServer>,
 ) {
-    for (entity, transform, entity_instance) in entity_query.iter() {
+    for (_entity, transform, entity_instance) in entity_query.iter() {
         println!("{:?}, {:?}", entity_instance, transform.translation);
         if entity_instance.identifier == *"WoodenStand" {
             let texture_handle = asset_server.load("textures/atlas.png");

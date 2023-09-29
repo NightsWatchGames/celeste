@@ -37,7 +37,8 @@ pub fn setup_start_menu(
             OnStartMenuScreen,
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     margin: UiRect::top(Val::Px(200.0)),

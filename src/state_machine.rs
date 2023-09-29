@@ -3,9 +3,7 @@ use bevy_rapier2d::prelude::*;
 
 use crate::{
     level::Player,
-    player::{
-        DashOverEvent, DashStartEvent, Facing, NextToSomething, PlayerGrounded, PlayerNextTo,
-    },
+    player::{DashOverEvent, DashStartEvent, NextToSomething, PlayerGrounded, PlayerNextTo},
 };
 
 #[derive(Debug, Resource, Clone, Copy, Default, PartialEq, Eq, Reflect)]

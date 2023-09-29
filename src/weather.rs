@@ -11,9 +11,9 @@ use bevy::prelude::*;
 pub struct WeatherPlugin;
 impl Plugin for WeatherPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(Material2dPlugin::<WeatherMaterial>::default())
-            .add_startup_system(spawn_weather)
-            .add_system(update_weather_time);
+        app.add_plugins(Material2dPlugin::<WeatherMaterial>::default())
+            .add_systems(Startup, (spawn_weather,))
+            .add_systems(Update, (update_weather_time,));
     }
 }
 
@@ -35,7 +35,7 @@ fn spawn_weather(
     });
 }
 
-#[derive(AsBindGroup, Debug, Clone, TypeUuid)]
+#[derive(AsBindGroup, Debug, Clone, TypeUuid, Reflect)]
 #[uuid = "d1776d38-712a-11ec-90d6-0242ac120003"]
 struct WeatherMaterial {
     #[uniform(0)]

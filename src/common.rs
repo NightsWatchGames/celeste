@@ -44,7 +44,3 @@ pub struct AnimationBundle {
     pub timer: AnimationTimer,
     pub indices: AnimationIndices,
 }
-
-pub fn in_gaming_state(app_state: Res<State<AppState>>) -> bool {
-    app_state.0 == AppState::Gaming
-}
