@@ -1,11 +1,9 @@
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::Material2dPlugin;
-use bevy::{
-    reflect::TypeUuid,
-    sprite::{Material2d, MaterialMesh2dBundle},
-};
+use bevy::sprite::{Material2d, MaterialMesh2dBundle};
 
 use bevy::prelude::*;
+use bevy::reflect::TypePath;
 
 // Plugin that will insert Weather at Z = -10.0, use the custom 'Star Nest' shader
 pub struct WeatherPlugin;
@@ -35,8 +33,7 @@ fn spawn_weather(
     });
 }
 
-#[derive(AsBindGroup, Debug, Clone, TypeUuid, Reflect)]
-#[uuid = "d1776d38-712a-11ec-90d6-0242ac120003"]
+#[derive(AsBindGroup, Debug, Clone, TypePath, Asset)]
 struct WeatherMaterial {
     #[uniform(0)]
     time: f32,

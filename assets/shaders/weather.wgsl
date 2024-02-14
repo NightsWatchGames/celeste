@@ -2,8 +2,7 @@
 // https://www.shadertoy.com/view/XlfGRj
 
 // The time since startup data is in the globals binding which is part of the mesh_view_bindings import
-#import bevy_sprite::mesh2d_view_bindings
-#import bevy_sprite::mesh2d_vertex_output  MeshVertexOutput
+#import bevy_sprite::mesh2d_vertex_output::VertexOutput
 
 struct WeatherMaterial {
     time: f32,
@@ -19,7 +18,7 @@ const SPEED = 1.5;
 
 @fragment
 fn fragment(
-	in: MeshVertexOutput,
+	in: VertexOutput,
 ) -> @location(0) vec4<f32> {
     let p: mat3x3<f32> = mat3x3<f32>(13.323122, 23.5112, 21.71123, 21.1212, 28.7312, 11.9312, 21.8112, 14.7212, 61.3934);
 	var acc: vec3<f32> = vec3<f32>(0.);

@@ -1,4 +1,5 @@
-use bevy::{prelude::*, render::texture::ImageSampler, window::WindowResolution};
+use bevy::render::texture::ImageSamplerDescriptor;
+use bevy::{prelude::*, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
@@ -24,7 +25,7 @@ fn main() {
         DefaultPlugins
             .set(ImagePlugin {
                 // 像素画放大后仍保证清晰
-                default_sampler: ImageSampler::nearest_descriptor(),
+                default_sampler: ImageSamplerDescriptor::nearest(),
             })
             .set(WindowPlugin {
                 //设置窗口大小 1100*750
@@ -48,7 +49,7 @@ fn main() {
 
     app.add_state::<AppState>()
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(LevelSelection::Index(0))
+        .insert_resource(LevelSelection::index(0))
         .insert_resource(PlayerState::Standing)
         .insert_resource(CameraState::Following)
         .insert_resource(PlayerGrounded(false))

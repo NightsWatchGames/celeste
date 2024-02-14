@@ -29,11 +29,11 @@ pub fn player_state_machine(
     if q_player.is_empty() {
         return;
     }
-    if dash_start_er.iter().next().is_some() {
+    if dash_start_er.read().next().is_some() {
         *player_state = PlayerState::Dashing;
         return;
     }
-    if *player_state == PlayerState::Dashing && dash_over_er.iter().next().is_none() {
+    if *player_state == PlayerState::Dashing && dash_over_er.read().next().is_none() {
         // 持续保持dashing状态直至接收到DashOverEvent
         return;
     }

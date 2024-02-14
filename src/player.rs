@@ -67,7 +67,7 @@ pub fn player_die(
     q_trap: Query<Entity, With<Trap>>,
     q_player: Query<&Transform, With<Player>>,
 ) {
-    for event in collision_er.iter() {
+    for event in collision_er.read() {
         match event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
                 if q_trap.contains(*entity1) {
@@ -336,7 +336,7 @@ pub fn player_dash_over(
         return;
     }
     let (mut velocity, mut gravity_scale) = q_player.single_mut();
-    if dash_over_er.iter().next().is_some() {
+    if dash_over_er.read().next().is_some() {
         velocity.linvel.x = 0.0;
         gravity_scale.0 = PLAYER_GRAVITY_SCALE;
     }
@@ -514,7 +514,7 @@ pub fn despawn_hair(
 }
 
 pub fn handle_player_collision(
-    mut q_player: Query<(&mut Velocity, &mut GravityScale), With<Player>>,
+    q_player: Query<(&Velocity, &GravityScale), With<Player>>,
     q_snowdrift: Query<(), With<Snowdrift>>,
     mut collision_er: EventReader<CollisionEvent>,
     mut dash_over_ew: EventWriter<DashOverEvent>,
@@ -524,7 +524,7 @@ pub fn handle_player_collision(
     if q_player.is_empty() {
         return;
     }
-    for collision in collision_er.iter() {
+    for collision in collision_er.read() {
         match collision {
             CollisionEvent::Started(entity1, entity2, _) => {
                 // 蹬墙跳后产生碰撞时，立刻解除不能移动的限制

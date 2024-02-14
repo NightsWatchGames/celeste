@@ -44,7 +44,7 @@ pub struct ColliderBundle {
     pub restitution: Restitution,
     pub active_events: ActiveEvents,
 }
-#[derive(Clone, Debug, Default, Bundle)]
+#[derive(Clone, Default, Bundle)]
 pub struct SensorBundle {
     pub collider: Collider,
     pub sensor: Sensor,
@@ -249,7 +249,7 @@ pub fn spring_up(
     mut q_player: Query<&mut Velocity, With<Player>>,
     mut spring_up_ew: EventWriter<SpringUpEvent>,
 ) {
-    for event in collision_er.iter() {
+    for event in collision_er.read() {
         match event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
                 let spring_entity = if q_spring.contains(*entity1) {
@@ -284,7 +284,7 @@ pub fn snowdrift_broken(
     if *player_state != PlayerState::Dashing {
         return;
     }
-    for event in collision_er.iter() {
+    for event in collision_er.read() {
         match event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
                 let snowdrift_entity = if q_snowdrift.contains(*entity1) {
@@ -415,7 +415,7 @@ pub fn aninmate_spring(
     >,
     time: Res<Time>,
 ) {
-    for spring_up_event in spring_up_er.iter() {
+    for spring_up_event in spring_up_er.read() {
         info!("Received spring up event: {:?}", spring_up_event);
         for (entity, mut timer, indices, mut sprite) in &mut q_spring {
             if spring_up_event.entity == entity {
