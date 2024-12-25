@@ -1,5 +1,5 @@
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
-use bevy::sprite::Material2d;
+use bevy::sprite::{AlphaMode2d, Material2d};
 use bevy::sprite::Material2dPlugin;
 
 use bevy::prelude::*;
@@ -41,6 +41,10 @@ struct WeatherMaterial {
 impl Material2d for WeatherMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/weather.wgsl".into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode2d {
+        AlphaMode2d::Blend
     }
 }
 
