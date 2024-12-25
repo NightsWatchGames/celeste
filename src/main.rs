@@ -42,11 +42,10 @@ fn main() {
     // .add_plugin(RapierDebugRenderPlugin::default())
     .add_plugins(LdtkPlugin);
 
-    // TODO fix
-    // #[cfg(not(target_arch = "wasm32"))]
-    // {
-    //     app.add_plugins(WeatherPlugin);
-    // }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        app.add_plugins(WeatherPlugin);
+    }
 
     app.init_state::<AppState>()
         .insert_resource(ClearColor(Color::BLACK))
