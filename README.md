@@ -35,7 +35,7 @@ wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/relea
 ```
 
 ## 控制
-- `A` `D` 移动
+- `A` `D` `S` 移动
 - `K` 跳跃
 - `J` 冲刺
 

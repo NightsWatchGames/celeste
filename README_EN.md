@@ -33,7 +33,7 @@ wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/relea
 ```
 
 ## Control
-- `A` `D` Move
+- `A` `D` `S` Move
 - `K` Jump
 - `J` Dash
 
