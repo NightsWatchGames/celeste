@@ -42,12 +42,12 @@ fn main() {
     // .add_plugin(RapierDebugRenderPlugin::default())
     .add_plugins(LdtkPlugin);
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        app.add_plugins(WeatherPlugin);
-    }
+    // #[cfg(not(target_arch = "wasm32"))]
+    // {
+    //     app.add_plugins(WeatherPlugin);
+    // }
 
-    app.add_state::<AppState>()
+    app.init_state::<AppState>()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(LevelSelection::index(0))
         .insert_resource(PlayerState::Standing)

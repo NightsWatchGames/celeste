@@ -1,8 +1,8 @@
-use std::collections::VecDeque;
-
+use bevy::color;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
+use std::collections::VecDeque;
 
 use crate::{
     camera::CameraShakeEvent,
@@ -60,7 +60,7 @@ pub enum NextToSomething {
 // 玩家死亡
 pub fn player_die(
     mut commands: Commands,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
     mut collision_er: EventReader<CollisionEvent>,
     mut camera_shake_ew: EventWriter<CameraShakeEvent>,
@@ -75,7 +75,7 @@ pub fn player_die(
                     commands.entity(*entity2).despawn_recursive();
                     spawn_dust(
                         &mut commands,
-                        &mut texture_atlases,
+                        &mut atlas_layouts,
                         &asset_server,
                         q_player.single().translation.truncate(),
                         Color::default(),
@@ -86,7 +86,7 @@ pub fn player_die(
                     commands.entity(*entity1).despawn_recursive();
                     spawn_dust(
                         &mut commands,
-                        &mut texture_atlases,
+                        &mut atlas_layouts,
                         &asset_server,
                         q_player.single().translation.truncate(),
                         Color::default(),
@@ -104,7 +104,7 @@ pub fn player_revive(
     mut commands: Commands,
     q_player: Query<(), With<Player>>,
     entity_query: Query<(&Transform, &EntityInstance)>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
 ) {
     if q_player.is_empty() {
@@ -112,7 +112,7 @@ pub fn player_revive(
             if entity_instance.identifier == *"Player" {
                 spawn_player(
                     &mut commands,
-                    &mut texture_atlases,
+                    &mut atlas_layouts,
                     &asset_server,
                     (transform.translation + LEVEL_TRANSLATION_OFFSET).truncate(),
                 );
@@ -124,22 +124,24 @@ pub fn player_revive(
 
 pub fn spawn_player(
     commands: &mut Commands,
-    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
     asset_server: &Res<AssetServer>,
     player_pos: Vec2,
 ) {
     let texture_handle = asset_server.load("textures/atlas.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    let texture_atlas = TextureAtlasLayout::from_grid(UVec2::new(8, 8), 16, 11, None, None);
+    let atlas_layout_handle = atlas_layouts.add(texture_atlas);
 
     commands.spawn(PlayerBundle {
         player: Player,
-        sprite_bundle: SpriteSheetBundle {
-            sprite: TextureAtlasSprite::new(1),
-            texture_atlas: texture_atlas_handle,
+        sprite_bundle: SpriteBundle {
+            texture: texture_handle,
             transform: Transform::from_translation(player_pos.extend(SPRITE_PLAYER_ORDER)),
             ..default()
+        },
+        texture_atlas: TextureAtlas {
+            index: 1,
+            layout: atlas_layout_handle,
         },
         animation_bundle: AnimationBundle {
             timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
@@ -160,7 +162,7 @@ pub fn spawn_player(
 
 // 角色奔跑
 pub fn player_run(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut q_player: Query<&mut Velocity, With<Player>>,
     player_state: Res<PlayerState>,
 ) {
@@ -169,9 +171,9 @@ pub fn player_run(
     }
     if *player_state == PlayerState::Running || *player_state == PlayerState::Standing {
         let mut velocity = q_player.single_mut();
-        if keyboard_input.pressed(KeyCode::A) {
+        if keyboard_input.pressed(KeyCode::KeyA) {
             velocity.linvel.x = -PLAYER_RUN_SPEED;
-        } else if keyboard_input.pressed(KeyCode::D) {
+        } else if keyboard_input.pressed(KeyCode::KeyD) {
             velocity.linvel.x = PLAYER_RUN_SPEED;
         } else {
             // 不按键时停止左右奔跑
@@ -182,7 +184,7 @@ pub fn player_run(
 
 // 角色左右移动（空中）
 pub fn player_move(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut q_player: Query<&mut Velocity, With<Player>>,
     player_state: Res<PlayerState>,
     player_next_to: Res<PlayerNextTo>,
@@ -201,13 +203,13 @@ pub fn player_move(
     }
     if *player_state == PlayerState::Jumping || *player_state == PlayerState::Climbing {
         let mut velocity = q_player.single_mut();
-        if keyboard_input.pressed(KeyCode::A) {
+        if keyboard_input.pressed(KeyCode::KeyA) {
             if player_next_to.0.is_some() && player_next_to.0.unwrap() == NextToSomething::LeftNext
             {
             } else {
                 velocity.linvel.x = -PLAYER_RUN_SPEED;
             }
-        } else if keyboard_input.pressed(KeyCode::D) {
+        } else if keyboard_input.pressed(KeyCode::KeyD) {
             if player_next_to.0.is_some() && player_next_to.0.unwrap() == NextToSomething::RightNext
             {
             } else {
@@ -223,9 +225,9 @@ pub fn player_move(
 // 角色跳跃
 pub fn player_jump(
     mut commands: Commands,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Transform), With<Player>>,
     player_state: Res<PlayerState>,
     player_next_to: Res<PlayerNextTo>,
@@ -240,8 +242,8 @@ pub fn player_jump(
     {
         let (mut velocity, transform) = q_player.single_mut();
         // TODO 可允许角色在非跳跃进入下坠状态时能够进行跳跃
-        if keyboard_input.just_pressed(KeyCode::K) {
-            if keyboard_input.pressed(KeyCode::S) {
+        if keyboard_input.just_pressed(KeyCode::KeyK) {
+            if keyboard_input.pressed(KeyCode::KeyS) {
                 // 同时按下和跳跃键，不向上跳
                 return;
             }
@@ -263,7 +265,7 @@ pub fn player_jump(
             }
             spawn_dust(
                 &mut commands,
-                &mut texture_atlases,
+                &mut atlas_layouts,
                 &asset_server,
                 transform.translation.truncate(),
                 Color::default(),
@@ -275,9 +277,9 @@ pub fn player_jump(
 // 角色冲刺/冲撞
 pub fn player_dash(
     mut commands: Commands,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut q_player: Query<(&mut Velocity, &Facing, &Transform, &mut GravityScale), With<Player>>,
     mut spawn_dust_cd: Local<f32>,
     mut dash_timer: Local<f32>,
@@ -291,7 +293,7 @@ pub fn player_dash(
         return;
     }
     // 冲刺期间不能再次冲刺
-    if keyboard_input.just_pressed(KeyCode::J) && *player_state != PlayerState::Dashing {
+    if keyboard_input.just_pressed(KeyCode::KeyJ) && *player_state != PlayerState::Dashing {
         *dash_timer = 0.2;
         dash_start_ew.send_default();
         camera_shake_ew.send_default();
@@ -313,7 +315,7 @@ pub fn player_dash(
         } else {
             spawn_dust(
                 &mut commands,
-                &mut texture_atlases,
+                &mut atlas_layouts,
                 &asset_server,
                 transform.translation.truncate(),
                 PLAYER_DASHING_COLOR,
@@ -375,7 +377,8 @@ pub fn animate_run(
             &Facing,
             &mut AnimationTimer,
             &mut AnimationIndices,
-            &mut TextureAtlasSprite,
+            &mut Sprite,
+            &mut TextureAtlas,
         ),
         With<Player>,
     >,
@@ -383,11 +386,11 @@ pub fn animate_run(
     time: Res<Time>,
 ) {
     if *player_state == PlayerState::Running {
-        for (facing, mut timer, mut indices, mut sprite) in &mut q_player {
+        for (facing, mut timer, mut indices, mut sprite, mut atlas) in &mut q_player {
             timer.0.tick(time.delta());
             if timer.0.just_finished() {
                 // 切换到下一个sprite
-                sprite.index = if indices.index == indices.sprite_indices.len() - 1 {
+                atlas.index = if indices.index == indices.sprite_indices.len() - 1 {
                     indices.index = 0;
                     indices.sprite_indices[indices.index]
                 } else {
@@ -406,12 +409,12 @@ pub fn animate_run(
 
 // 跳跃动画
 pub fn animate_jump(
-    mut q_player: Query<(&Facing, &mut TextureAtlasSprite), With<Player>>,
+    mut q_player: Query<(&Facing, &mut Sprite, &mut TextureAtlas), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if *player_state == PlayerState::Jumping {
-        for (facing, mut sprite) in &mut q_player {
-            sprite.index = 3;
+        for (facing, mut sprite, mut atlas) in &mut q_player {
+            atlas.index = 3;
             if *facing == Facing::Left {
                 sprite.flip_x = true;
             } else {
@@ -423,12 +426,12 @@ pub fn animate_jump(
 
 // 站立动画
 pub fn animate_stand(
-    mut q_player: Query<(&Facing, &mut TextureAtlasSprite), With<Player>>,
+    mut q_player: Query<(&Facing, &mut Sprite, &mut TextureAtlas), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if *player_state == PlayerState::Standing {
-        for (facing, mut sprite) in &mut q_player {
-            sprite.index = 1;
+        for (facing, mut sprite, mut atlas) in &mut q_player {
+            atlas.index = 1;
             if *facing == Facing::Left {
                 sprite.flip_x = true;
             } else {
@@ -440,12 +443,12 @@ pub fn animate_stand(
 
 // 冲刺动画
 pub fn animate_dash(
-    mut q_player: Query<(&Facing, &mut TextureAtlasSprite), With<Player>>,
+    mut q_player: Query<(&Facing, &mut TextureAtlas, &mut Sprite), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if *player_state == PlayerState::Dashing {
-        for (facing, mut sprite) in &mut q_player {
-            sprite.index = 131;
+        for (facing, mut atlas, mut sprite) in &mut q_player {
+            atlas.index = 131;
             if *facing == Facing::Left {
                 sprite.flip_x = true;
             } else {
@@ -458,7 +461,7 @@ pub fn animate_dash(
 // 创建角色头发
 pub fn spawn_hair(
     mut commands: Commands,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
     q_hair: Query<(), With<Hair>>,
     q_player: Query<&Transform, With<Player>>,
@@ -466,27 +469,25 @@ pub fn spawn_hair(
     if !q_player.is_empty() && q_hair.is_empty() {
         let columns = 6;
         let texture_handle = asset_server.load("textures/hair.png");
-        let texture_atlas = TextureAtlas::from_grid(
-            texture_handle,
-            Vec2::new(8.0, 8.0),
+        let atlas_layout = TextureAtlasLayout::from_grid(
+            UVec2::new(8, 8),
             columns,
             1,
-            Some(Vec2::new(1.0, 1.0)),
-            Some(Vec2::new(1.0, 1.0)),
+            Some(UVec2::new(1, 1)),
+            Some(UVec2::new(1, 1)),
         );
-        let texture_atlas_handle = texture_atlases.add(texture_atlas);
+        let atlas_layout_handle = atlas_layouts.add(atlas_layout);
 
         for player_transfrom in &q_player {
             for i in 0..columns {
                 commands.spawn((
                     Hair,
-                    SpriteSheetBundle {
-                        sprite: TextureAtlasSprite {
-                            index: i,
-                            color: Color::RED,
+                    SpriteBundle {
+                        sprite: Sprite {
+                            color: color::palettes::basic::RED.into(),
                             ..default()
                         },
-                        texture_atlas: texture_atlas_handle.clone(),
+                        texture: texture_handle.clone(),
                         transform: Transform::from_translation(
                             player_transfrom
                                 .translation
@@ -494,6 +495,10 @@ pub fn spawn_hair(
                                 .extend(SPRITE_HAIR_ORDER),
                         ),
                         ..default()
+                    },
+                    TextureAtlas {
+                        index: i as usize,
+                        layout: atlas_layout_handle.clone(),
                     },
                 ));
             }
@@ -551,7 +556,10 @@ pub fn handle_player_collision(
 }
 
 pub fn animate_hair(
-    mut q_hair: Query<(&mut Transform, &mut TextureAtlasSprite), (With<Hair>, Without<Player>)>,
+    mut q_hair: Query<
+        (&mut Transform, &mut Sprite, &mut TextureAtlas),
+        (With<Hair>, Without<Player>),
+    >,
     q_player: Query<(&Transform, &Facing), With<Player>>,
     player_state: Res<PlayerState>,
     mut hair_flow: Local<VecDeque<Vec2>>,
@@ -566,8 +574,9 @@ pub fn animate_hair(
     }
 
     // 头发排序
-    let mut hair: Vec<(Mut<Transform>, Mut<TextureAtlasSprite>)> = q_hair.iter_mut().collect();
-    hair.sort_by(|single_hair1, single_hair2| single_hair1.1.index.cmp(&single_hair2.1.index));
+    let mut hair: Vec<(Mut<Transform>, Mut<Sprite>, Mut<TextureAtlas>)> =
+        q_hair.iter_mut().collect();
+    hair.sort_by(|single_hair1, single_hair2| single_hair1.2.index.cmp(&single_hair2.2.index));
 
     // 依次往每个bucket（hair_flow槽）里放，直至放满，多余hair放到最后的bucket
     let bucket_size = hair.iter().len() / hair_flow.len();
@@ -597,39 +606,41 @@ pub fn animate_hair(
 
     // 冲刺期间头发变色
     if *player_state == PlayerState::Dashing {
-        for (_, mut sprite) in &mut q_hair {
+        for (_, mut sprite, _) in &mut q_hair {
             sprite.color = PLAYER_DASHING_COLOR;
         }
     } else {
-        for (_, mut sprite) in &mut q_hair {
-            sprite.color = Color::RED;
+        for (_, mut sprite, _) in &mut q_hair {
+            sprite.color = color::palettes::basic::RED.into();
         }
     }
 }
 
 pub fn spawn_dust(
     commands: &mut Commands,
-    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
     asset_server: &Res<AssetServer>,
     dust_pos: Vec2,
     dust_color: Color,
 ) {
     let texture_handle = asset_server.load("textures/atlas.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(8.0, 8.0), 16, 11, None, None);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    let atlas_layout = TextureAtlasLayout::from_grid(UVec2::new(8, 8), 16, 11, None, None);
+    let atlas_layout_handle = atlas_layouts.add(atlas_layout);
 
     commands.spawn((
         Dust,
-        SpriteSheetBundle {
-            sprite: TextureAtlasSprite {
-                index: 29,
+        SpriteBundle {
+            sprite: Sprite {
                 color: dust_color,
                 ..default()
             },
-            texture_atlas: texture_atlas_handle,
+            texture: texture_handle,
             transform: Transform::from_translation(dust_pos.extend(SPRITE_DUST_ORDER)),
             ..default()
+        },
+        TextureAtlas {
+            index: 29,
+            layout: atlas_layout_handle,
         },
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         AnimationIndices {
@@ -646,7 +657,7 @@ pub fn animate_dust(
             Entity,
             &mut AnimationTimer,
             &mut AnimationIndices,
-            &mut TextureAtlasSprite,
+            &mut TextureAtlas,
         ),
         With<Dust>,
     >,

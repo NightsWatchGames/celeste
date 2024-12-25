@@ -18,7 +18,7 @@ pub enum PlayerState {
 }
 
 pub fn player_state_machine(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     q_player: Query<&Velocity, With<Player>>,
     mut player_state: ResMut<PlayerState>,
     player_grounded: Res<PlayerGrounded>,
@@ -51,9 +51,9 @@ pub fn player_state_machine(
     // Climbing状态
     if player_next_to.0.is_some() {
         if player_next_to.0.unwrap() == NextToSomething::LeftNext
-            && keyboard_input.pressed(KeyCode::A)
+            && keyboard_input.pressed(KeyCode::KeyA)
             || player_next_to.0.unwrap() == NextToSomething::RightNext
-                && keyboard_input.pressed(KeyCode::D)
+                && keyboard_input.pressed(KeyCode::KeyD)
         {
             *player_state = PlayerState::Climbing;
             return;

@@ -1,3 +1,4 @@
+use bevy::color;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
@@ -62,8 +63,8 @@ pub struct TerrainBundle {
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct SpringBundle {
     pub spring: Spring,
-    #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 19)]
-    sprite_bundle: SpriteSheetBundle,
+    #[sprite_sheet_bundle("textures/atlas.png", 8, 8, 16, 11, 0, 0, 19)]
+    sprite_bundle: LdtkSpriteSheetBundle,
     #[from_entity_instance]
     sensor_bundle: SensorBundle,
     #[from_entity_instance]
@@ -73,8 +74,8 @@ pub struct SpringBundle {
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct TrapBundle {
     pub trap: Trap,
-    #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 17)]
-    sprite_bundle: SpriteSheetBundle,
+    #[sprite_sheet_bundle("textures/atlas.png", 8, 8, 16, 11, 0, 0, 17)]
+    sprite_bundle: LdtkSpriteSheetBundle,
     #[from_entity_instance]
     sensor_bundle: SensorBundle,
 }
@@ -82,15 +83,16 @@ pub struct TrapBundle {
 #[derive(Clone, Default, Bundle)]
 pub struct WoodenStandBundle {
     pub wooden_stand: WoodenStand,
-    sprite_bundle: SpriteSheetBundle,
+    sprite_bundle: SpriteBundle,
+    texture_atlas: TextureAtlas,
     collider_bundle: ColliderBundle,
 }
 
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct SnowdriftBundle {
     pub snowdrift: Snowdrift,
-    #[sprite_sheet_bundle("textures/atlas.png", 16.0, 16.0, 8, 5, 0.0, 0.0, 16)]
-    sprite_bundle: SpriteSheetBundle,
+    #[sprite_sheet_bundle("textures/atlas.png", 16, 16, 8, 5, 0, 0, 16)]
+    sprite_bundle: LdtkSpriteSheetBundle,
     #[from_entity_instance]
     pub collider_bundle: ColliderBundle,
 }
@@ -98,8 +100,8 @@ pub struct SnowdriftBundle {
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct BalloonRopeBundle {
     pub balloon_rope: BalloonRope,
-    #[sprite_sheet_bundle("textures/atlas.png", 8.0, 8.0, 16, 11, 0.0, 0.0, 13)]
-    sprite_bundle: SpriteSheetBundle,
+    #[sprite_sheet_bundle("textures/atlas.png", 8, 8, 16, 11, 0, 0, 13)]
+    sprite_bundle: LdtkSpriteSheetBundle,
     #[from_entity_instance]
     animation_bundle: AnimationBundle,
 }
@@ -107,7 +109,8 @@ pub struct BalloonRopeBundle {
 #[derive(Clone, Default, Bundle)]
 pub struct PlayerBundle {
     pub player: Player,
-    pub sprite_bundle: SpriteSheetBundle,
+    pub sprite_bundle: SpriteBundle,
+    pub texture_atlas: TextureAtlas,
     pub animation_bundle: AnimationBundle,
     pub facing: Facing,
     pub collider: Collider,
@@ -195,33 +198,36 @@ pub fn spawn_ldtk_entity(
     mut commands: Commands,
     entity_query: Query<(Entity, &Transform, &EntityInstance), Added<EntityInstance>>,
     q_player: Query<(), With<Player>>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
 ) {
     for (_entity, transform, entity_instance) in entity_query.iter() {
         println!("{:?}, {:?}", entity_instance, transform.translation);
         if entity_instance.identifier == *"WoodenStand" {
             let texture_handle = asset_server.load("textures/atlas.png");
-            let mut texture_atlas = TextureAtlas::new_empty(texture_handle, Vec2::new(128., 88.));
-            texture_atlas.add_texture(Rect {
-                min: Vec2::new(72., 16.),
-                max: Vec2::new(88., 24.),
+            let mut atlas_layout = TextureAtlasLayout::new_empty(UVec2::new(128, 88));
+            atlas_layout.add_texture(URect {
+                min: UVec2::new(72, 16),
+                max: UVec2::new(88, 24),
             });
-            let texture_atlas_handle = texture_atlases.add(texture_atlas);
+            let atlas_layout_handle = atlas_layouts.add(atlas_layout);
 
             let mut translation = transform.translation + LEVEL_TRANSLATION_OFFSET;
             translation.z = 10.0;
             commands.spawn(WoodenStandBundle {
                 wooden_stand: WoodenStand,
-                sprite_bundle: SpriteSheetBundle {
-                    sprite: TextureAtlasSprite {
-                        color: Color::GREEN,
-                        index: 0,
+                sprite_bundle: SpriteBundle {
+                    sprite: Sprite {
+                        color: color::palettes::basic::GREEN.into(),
                         ..default()
                     },
-                    texture_atlas: texture_atlas_handle,
+                    texture: texture_handle,
                     transform: Transform::from_translation(translation),
                     ..default()
+                },
+                texture_atlas: TextureAtlas {
+                    index: 0,
+                    layout: atlas_layout_handle,
                 },
                 collider_bundle: ColliderBundle {
                     collider: Collider::cuboid(TILE_SIZE, TILE_SIZE / 2.),
@@ -234,7 +240,7 @@ pub fn spawn_ldtk_entity(
         if entity_instance.identifier == *"Player" && q_player.is_empty() {
             spawn_player(
                 &mut commands,
-                &mut texture_atlases,
+                &mut atlas_layouts,
                 &asset_server,
                 (transform.translation + LEVEL_TRANSLATION_OFFSET).truncate(),
             );
@@ -275,7 +281,7 @@ pub fn spring_up(
 // 雪堆破坏
 pub fn snowdrift_broken(
     mut commands: Commands,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     asset_server: Res<AssetServer>,
     mut collision_er: EventReader<CollisionEvent>,
     q_snowdrift: Query<(Entity, &GlobalTransform), With<Snowdrift>>,
@@ -295,35 +301,33 @@ pub fn snowdrift_broken(
                     continue;
                 };
                 info!("Snow drift collision");
-                let snowdrift_transfrom = q_snowdrift
-                    .get_component::<GlobalTransform>(snowdrift_entity)
-                    .unwrap();
+                let (_, snowdrift_transfrom) = q_snowdrift.get(snowdrift_entity).unwrap();
                 let snowdrift_pos = snowdrift_transfrom.translation().truncate();
                 commands.entity(snowdrift_entity).despawn();
                 spawn_dust(
                     &mut commands,
-                    &mut texture_atlases,
+                    &mut atlas_layouts,
                     &asset_server,
                     snowdrift_pos + Vec2::new(4.0, 4.0),
                     Color::default(),
                 );
                 spawn_dust(
                     &mut commands,
-                    &mut texture_atlases,
+                    &mut atlas_layouts,
                     &asset_server,
                     snowdrift_pos + Vec2::new(4.0, -4.0),
                     Color::default(),
                 );
                 spawn_dust(
                     &mut commands,
-                    &mut texture_atlases,
+                    &mut atlas_layouts,
                     &asset_server,
                     snowdrift_pos + Vec2::new(-4.0, 4.0),
                     Color::default(),
                 );
                 spawn_dust(
                     &mut commands,
-                    &mut texture_atlases,
+                    &mut atlas_layouts,
                     &asset_server,
                     snowdrift_pos + Vec2::new(-4.0, -4.0),
                     Color::default(),
@@ -337,7 +341,7 @@ pub fn snowdrift_broken(
 // 木架
 pub fn wooden_stand_through(
     mut commands: Commands,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     q_player: Query<&Transform, With<Player>>,
     q_wooden_stand: Query<(), With<WoodenStand>>,
     rapier_context: Res<RapierContext>,
@@ -365,7 +369,7 @@ pub fn wooden_stand_through(
         QueryFilter::default(),
     ) {
         if q_wooden_stand.contains(entity) {
-            if keyboard_input.pressed(KeyCode::S) && keyboard_input.pressed(KeyCode::K) {
+            if keyboard_input.pressed(KeyCode::KeyS) && keyboard_input.pressed(KeyCode::KeyK) {
                 commands.entity(entity).insert(Sensor);
             } else {
                 commands.entity(entity).remove::<Sensor>();
@@ -381,7 +385,7 @@ pub fn animate_balloon_rope(
         (
             &mut AnimationTimer,
             &mut AnimationIndices,
-            &mut TextureAtlasSprite,
+            &mut TextureAtlas,
         ),
         With<BalloonRope>,
     >,
@@ -409,7 +413,7 @@ pub fn aninmate_spring(
             Entity,
             &mut AnimationTimer,
             &AnimationIndices,
-            &mut TextureAtlasSprite,
+            &mut TextureAtlas,
         ),
         With<Spring>,
     >,

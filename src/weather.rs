@@ -22,7 +22,7 @@ fn spawn_weather(
     mut materials: ResMut<Assets<WeatherMaterial>>,
 ) {
     commands.spawn(MaterialMesh2dBundle {
-        mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+        mesh: meshes.add(Mesh::from(Rectangle::default().mesh())).into(),
         transform: Transform {
             translation: Vec3::new(0.0, 0.0, 1.0),
             scale: Vec3::new(400., 265., 1.0), //适配分辨率 0.3倍

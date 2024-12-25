@@ -1,3 +1,4 @@
+use bevy::color;
 use bevy::prelude::*;
 
 use crate::common::AppState;
@@ -8,27 +9,30 @@ pub struct OnStartMenuScreen;
 pub fn setup_start_menu(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     let texture_handle = asset_server.load("textures/atlas.png");
-    let mut texture_atlas = TextureAtlas::new_empty(texture_handle, Vec2::new(128., 88.));
-    texture_atlas.add_texture(Rect {
-        min: Vec2::new(72. + 0.5, 32. + 0.5),
-        max: Vec2::new(128., 64.),
+    let mut atlas_layout = TextureAtlasLayout::new_empty(UVec2::new(128, 88));
+    atlas_layout.add_texture(URect {
+        min: UVec2::new(72 + 1, 32 + 1),
+        max: UVec2::new(128, 64),
     });
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    let atlas_layout_handle = atlas_layouts.add(atlas_layout);
 
     commands.spawn((
         OnStartMenuScreen,
-        SpriteSheetBundle {
-            sprite: TextureAtlasSprite::new(0),
-            texture_atlas: texture_atlas_handle,
+        SpriteBundle {
+            texture: texture_handle,
             transform: Transform {
                 translation: Vec3::new(0.0, 1.0, 1.0),
                 scale: Vec3::new(3., 3., 1.0), //放大3倍
                 ..Default::default()
             },
             ..default()
+        },
+        TextureAtlas {
+            index: 0,
+            layout: atlas_layout_handle,
         },
     ));
 
@@ -54,7 +58,7 @@ pub fn setup_start_menu(
                     TextStyle {
                         font: asset_server.load("fonts/ThaleahFat_TTF.ttf"),
                         font_size: 40.0,
-                        color: Color::GRAY,
+                        color: color::palettes::basic::GRAY.into(),
                     },
                 ),
                 ..default()
@@ -64,9 +68,9 @@ pub fn setup_start_menu(
 
 pub fn enter_gaming(
     mut app_state: ResMut<NextState<AppState>>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Return) {
+    if keyboard_input.just_pressed(KeyCode::Enter) {
         app_state.set(AppState::Gaming);
     }
 }
