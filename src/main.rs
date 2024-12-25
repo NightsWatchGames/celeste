@@ -1,4 +1,4 @@
-use bevy::render::texture::ImageSamplerDescriptor;
+use bevy::image::ImageSamplerDescriptor;
 use bevy::{prelude::*, window::WindowResolution};
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
@@ -42,6 +42,7 @@ fn main() {
     // .add_plugin(RapierDebugRenderPlugin::default())
     .add_plugins(LdtkPlugin);
 
+    // TODO fix
     // #[cfg(not(target_arch = "wasm32"))]
     // {
     //     app.add_plugins(WeatherPlugin);

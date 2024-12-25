@@ -19,9 +19,9 @@ pub enum CameraState {
 }
 
 pub fn setup_camera(mut commands: Commands) {
-    let mut camera2d_bundle = Camera2dBundle::default();
-    camera2d_bundle.projection.scale = CAMERA_SCALE;
-    commands.spawn(camera2d_bundle);
+    let mut projection = OrthographicProjection::default_2d();
+    projection.scale = CAMERA_SCALE;
+    commands.spawn((Camera2d, projection));
 }
 
 // 相机跟随角色
@@ -72,7 +72,7 @@ pub fn camera_shake(
     }
     if *shake_timer > 0.0 {
         // 产生抖动效果
-        *shake_timer -= time.delta_seconds();
+        *shake_timer -= time.delta_secs();
         let mut rng = rand::thread_rng();
         for mut camera in &mut q_camera {
             camera.translation.x += rng.gen_range(-1.0..1.0);

@@ -1,6 +1,6 @@
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::sprite::Material2d;
 use bevy::sprite::Material2dPlugin;
-use bevy::sprite::{Material2d, MaterialMesh2dBundle};
 
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
@@ -21,16 +21,15 @@ fn spawn_weather(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<WeatherMaterial>>,
 ) {
-    commands.spawn(MaterialMesh2dBundle {
-        mesh: meshes.add(Mesh::from(Rectangle::default().mesh())).into(),
-        transform: Transform {
+    commands.spawn((
+        Mesh2d(meshes.add(Mesh::from(Rectangle::default().mesh()))),
+        Transform {
             translation: Vec3::new(0.0, 0.0, 1.0),
             scale: Vec3::new(400., 265., 1.0), //适配分辨率 0.3倍
             ..Default::default()
         },
-        material: materials.add(WeatherMaterial { time: 0.0 }),
-        ..Default::default()
-    });
+        MeshMaterial2d(materials.add(WeatherMaterial { time: 0.0 })),
+    ));
 }
 
 #[derive(AsBindGroup, Debug, Clone, TypePath, Asset)]
@@ -47,6 +46,6 @@ impl Material2d for WeatherMaterial {
 
 fn update_weather_time(time: Res<Time>, mut weathers: ResMut<Assets<WeatherMaterial>>) {
     for (_, weather) in weathers.iter_mut() {
-        weather.time += time.delta_seconds();
+        weather.time += time.delta_secs();
     }
 }

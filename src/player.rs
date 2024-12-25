@@ -134,15 +134,15 @@ pub fn spawn_player(
 
     commands.spawn(PlayerBundle {
         player: Player,
-        sprite_bundle: SpriteBundle {
-            texture: texture_handle,
-            transform: Transform::from_translation(player_pos.extend(SPRITE_PLAYER_ORDER)),
+        sprite: Sprite {
+            image: texture_handle,
+            texture_atlas: Some(TextureAtlas {
+                index: 1,
+                layout: atlas_layout_handle,
+            }),
             ..default()
         },
-        texture_atlas: TextureAtlas {
-            index: 1,
-            layout: atlas_layout_handle,
-        },
+        transform: Transform::from_translation(player_pos.extend(SPRITE_PLAYER_ORDER)),
         animation_bundle: AnimationBundle {
             timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             indices: AnimationIndices {
@@ -192,7 +192,7 @@ pub fn player_move(
     time: Res<Time>,
 ) {
     if player_cannot_move_time.0 > 0.0 {
-        player_cannot_move_time.0 -= time.delta_seconds();
+        player_cannot_move_time.0 -= time.delta_secs();
     }
     if q_player.is_empty() {
         return;
@@ -301,7 +301,7 @@ pub fn player_dash(
 
     let (mut velocity, facing, transform, mut gravity_scale) = q_player.single_mut();
     if *dash_timer > 0.0 && *player_state == PlayerState::Dashing {
-        *dash_timer -= time.delta_seconds();
+        *dash_timer -= time.delta_secs();
         if *facing == Facing::Left {
             velocity.linvel = Vec2::new(-PLAYER_DASH_SPEED, 0.0);
         } else if *facing == Facing::Right {
@@ -311,7 +311,7 @@ pub fn player_dash(
         gravity_scale.0 = 0.0;
 
         if *spawn_dust_cd > 0.0 {
-            *spawn_dust_cd -= time.delta_seconds();
+            *spawn_dust_cd -= time.delta_secs();
         } else {
             spawn_dust(
                 &mut commands,
@@ -378,7 +378,6 @@ pub fn animate_run(
             &mut AnimationTimer,
             &mut AnimationIndices,
             &mut Sprite,
-            &mut TextureAtlas,
         ),
         With<Player>,
     >,
@@ -386,17 +385,19 @@ pub fn animate_run(
     time: Res<Time>,
 ) {
     if *player_state == PlayerState::Running {
-        for (facing, mut timer, mut indices, mut sprite, mut atlas) in &mut q_player {
+        for (facing, mut timer, mut indices, mut sprite) in &mut q_player {
             timer.0.tick(time.delta());
             if timer.0.just_finished() {
                 // 切换到下一个sprite
-                atlas.index = if indices.index == indices.sprite_indices.len() - 1 {
-                    indices.index = 0;
-                    indices.sprite_indices[indices.index]
-                } else {
-                    indices.index += 1;
-                    indices.sprite_indices[indices.index]
-                };
+                if let Some(atlas) = &mut sprite.texture_atlas {
+                    atlas.index = if indices.index == indices.sprite_indices.len() - 1 {
+                        indices.index = 0;
+                        indices.sprite_indices[indices.index]
+                    } else {
+                        indices.index += 1;
+                        indices.sprite_indices[indices.index]
+                    };
+                }
                 if *facing == Facing::Left {
                     sprite.flip_x = true;
                 } else {
@@ -409,12 +410,14 @@ pub fn animate_run(
 
 // 跳跃动画
 pub fn animate_jump(
-    mut q_player: Query<(&Facing, &mut Sprite, &mut TextureAtlas), With<Player>>,
+    mut q_player: Query<(&Facing, &mut Sprite), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if *player_state == PlayerState::Jumping {
-        for (facing, mut sprite, mut atlas) in &mut q_player {
-            atlas.index = 3;
+        for (facing, mut sprite) in &mut q_player {
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = 3;
+            }
             if *facing == Facing::Left {
                 sprite.flip_x = true;
             } else {
@@ -426,12 +429,14 @@ pub fn animate_jump(
 
 // 站立动画
 pub fn animate_stand(
-    mut q_player: Query<(&Facing, &mut Sprite, &mut TextureAtlas), With<Player>>,
+    mut q_player: Query<(&Facing, &mut Sprite), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if *player_state == PlayerState::Standing {
-        for (facing, mut sprite, mut atlas) in &mut q_player {
-            atlas.index = 1;
+        for (facing, mut sprite) in &mut q_player {
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = 1;
+            }
             if *facing == Facing::Left {
                 sprite.flip_x = true;
             } else {
@@ -443,12 +448,14 @@ pub fn animate_stand(
 
 // 冲刺动画
 pub fn animate_dash(
-    mut q_player: Query<(&Facing, &mut TextureAtlas, &mut Sprite), With<Player>>,
+    mut q_player: Query<(&Facing, &mut Sprite), With<Player>>,
     player_state: Res<PlayerState>,
 ) {
     if *player_state == PlayerState::Dashing {
-        for (facing, mut atlas, mut sprite) in &mut q_player {
-            atlas.index = 131;
+        for (facing, mut sprite) in &mut q_player {
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = 131;
+            }
             if *facing == Facing::Left {
                 sprite.flip_x = true;
             } else {
@@ -482,24 +489,21 @@ pub fn spawn_hair(
             for i in 0..columns {
                 commands.spawn((
                     Hair,
-                    SpriteBundle {
-                        sprite: Sprite {
-                            color: color::palettes::basic::RED.into(),
-                            ..default()
-                        },
-                        texture: texture_handle.clone(),
-                        transform: Transform::from_translation(
-                            player_transfrom
-                                .translation
-                                .truncate()
-                                .extend(SPRITE_HAIR_ORDER),
-                        ),
+                    Sprite {
+                        image: texture_handle.clone(),
+                        color: color::palettes::basic::RED.into(),
+                        texture_atlas: Some(TextureAtlas {
+                            index: i as usize,
+                            layout: atlas_layout_handle.clone(),
+                        }),
                         ..default()
                     },
-                    TextureAtlas {
-                        index: i as usize,
-                        layout: atlas_layout_handle.clone(),
-                    },
+                    Transform::from_translation(
+                        player_transfrom
+                            .translation
+                            .truncate()
+                            .extend(SPRITE_HAIR_ORDER),
+                    ),
                 ));
             }
         }
@@ -556,10 +560,7 @@ pub fn handle_player_collision(
 }
 
 pub fn animate_hair(
-    mut q_hair: Query<
-        (&mut Transform, &mut Sprite, &mut TextureAtlas),
-        (With<Hair>, Without<Player>),
-    >,
+    mut q_hair: Query<(&mut Transform, &mut Sprite), (With<Hair>, Without<Player>)>,
     q_player: Query<(&Transform, &Facing), With<Player>>,
     player_state: Res<PlayerState>,
     mut hair_flow: Local<VecDeque<Vec2>>,
@@ -574,9 +575,16 @@ pub fn animate_hair(
     }
 
     // 头发排序
-    let mut hair: Vec<(Mut<Transform>, Mut<Sprite>, Mut<TextureAtlas>)> =
-        q_hair.iter_mut().collect();
-    hair.sort_by(|single_hair1, single_hair2| single_hair1.2.index.cmp(&single_hair2.2.index));
+    let mut hair: Vec<(Mut<Transform>, Mut<Sprite>)> = q_hair.iter_mut().collect();
+    hair.sort_by(|single_hair1, single_hair2| {
+        single_hair1
+            .1
+            .texture_atlas
+            .as_ref()
+            .unwrap()
+            .index
+            .cmp(&single_hair2.1.texture_atlas.as_ref().unwrap().index)
+    });
 
     // 依次往每个bucket（hair_flow槽）里放，直至放满，多余hair放到最后的bucket
     let bucket_size = hair.iter().len() / hair_flow.len();
@@ -606,11 +614,11 @@ pub fn animate_hair(
 
     // 冲刺期间头发变色
     if *player_state == PlayerState::Dashing {
-        for (_, mut sprite, _) in &mut q_hair {
+        for (_, mut sprite) in &mut q_hair {
             sprite.color = PLAYER_DASHING_COLOR;
         }
     } else {
-        for (_, mut sprite, _) in &mut q_hair {
+        for (_, mut sprite) in &mut q_hair {
             sprite.color = color::palettes::basic::RED.into();
         }
     }
@@ -629,19 +637,16 @@ pub fn spawn_dust(
 
     commands.spawn((
         Dust,
-        SpriteBundle {
-            sprite: Sprite {
-                color: dust_color,
-                ..default()
-            },
-            texture: texture_handle,
-            transform: Transform::from_translation(dust_pos.extend(SPRITE_DUST_ORDER)),
+        Sprite {
+            image: texture_handle,
+            color: dust_color,
+            texture_atlas: Some(TextureAtlas {
+                index: 29,
+                layout: atlas_layout_handle,
+            }),
             ..default()
         },
-        TextureAtlas {
-            index: 29,
-            layout: atlas_layout_handle,
-        },
+        Transform::from_translation(dust_pos.extend(SPRITE_DUST_ORDER)),
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         AnimationIndices {
             index: 0,
@@ -657,7 +662,7 @@ pub fn animate_dust(
             Entity,
             &mut AnimationTimer,
             &mut AnimationIndices,
-            &mut TextureAtlas,
+            &mut Sprite,
         ),
         With<Dust>,
     >,
@@ -667,12 +672,14 @@ pub fn animate_dust(
         timer.0.tick(time.delta());
         if timer.0.just_finished() {
             // 切换到下一个sprite
-            if indices.index == indices.sprite_indices.len() - 1 {
-                commands.entity(entity).despawn();
-            } else {
-                indices.index += 1;
-                sprite.index = indices.sprite_indices[indices.index];
-            };
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                if indices.index == indices.sprite_indices.len() - 1 {
+                    commands.entity(entity).despawn();
+                } else {
+                    indices.index += 1;
+                    atlas.index = indices.sprite_indices[indices.index];
+                };
+            }
         }
     }
 }
@@ -704,7 +711,7 @@ pub fn player_grounded_detect(
 }
 
 pub fn player_next_to_detect(
-    rapier_context: Res<RapierContext>,
+    rapier_context: Single<&RapierContext>,
     q_player: Query<&Transform, With<Player>>,
     q_terrain: Query<&GlobalTransform, With<Terrain>>,
     mut player_next_to: ResMut<PlayerNextTo>,

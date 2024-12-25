@@ -63,8 +63,8 @@ pub struct TerrainBundle {
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct SpringBundle {
     pub spring: Spring,
-    #[sprite_sheet_bundle("textures/atlas.png", 8, 8, 16, 11, 0, 0, 19)]
-    sprite_bundle: LdtkSpriteSheetBundle,
+    #[sprite_sheet("textures/atlas.png", 8, 8, 16, 11, 0, 0, 19)]
+    sprite_sheet: Sprite,
     #[from_entity_instance]
     sensor_bundle: SensorBundle,
     #[from_entity_instance]
@@ -74,8 +74,8 @@ pub struct SpringBundle {
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct TrapBundle {
     pub trap: Trap,
-    #[sprite_sheet_bundle("textures/atlas.png", 8, 8, 16, 11, 0, 0, 17)]
-    sprite_bundle: LdtkSpriteSheetBundle,
+    #[sprite_sheet("textures/atlas.png", 8, 8, 16, 11, 0, 0, 17)]
+    sprite_sheet: Sprite,
     #[from_entity_instance]
     sensor_bundle: SensorBundle,
 }
@@ -83,16 +83,16 @@ pub struct TrapBundle {
 #[derive(Clone, Default, Bundle)]
 pub struct WoodenStandBundle {
     pub wooden_stand: WoodenStand,
-    sprite_bundle: SpriteBundle,
-    texture_atlas: TextureAtlas,
+    sprite: Sprite,
+    transform: Transform,
     collider_bundle: ColliderBundle,
 }
 
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct SnowdriftBundle {
     pub snowdrift: Snowdrift,
-    #[sprite_sheet_bundle("textures/atlas.png", 16, 16, 8, 5, 0, 0, 16)]
-    sprite_bundle: LdtkSpriteSheetBundle,
+    #[sprite_sheet("textures/atlas.png", 16, 16, 8, 5, 0, 0, 16)]
+    sprite_sheet: Sprite,
     #[from_entity_instance]
     pub collider_bundle: ColliderBundle,
 }
@@ -100,8 +100,8 @@ pub struct SnowdriftBundle {
 #[derive(Clone, Default, Bundle, LdtkEntity)]
 pub struct BalloonRopeBundle {
     pub balloon_rope: BalloonRope,
-    #[sprite_sheet_bundle("textures/atlas.png", 8, 8, 16, 11, 0, 0, 13)]
-    sprite_bundle: LdtkSpriteSheetBundle,
+    #[sprite_sheet("textures/atlas.png", 8, 8, 16, 11, 0, 0, 13)]
+    sprite_sheet: Sprite,
     #[from_entity_instance]
     animation_bundle: AnimationBundle,
 }
@@ -109,8 +109,8 @@ pub struct BalloonRopeBundle {
 #[derive(Clone, Default, Bundle)]
 pub struct PlayerBundle {
     pub player: Player,
-    pub sprite_bundle: SpriteBundle,
-    pub texture_atlas: TextureAtlas,
+    pub sprite: Sprite,
+    pub transform: Transform,
     pub animation_bundle: AnimationBundle,
     pub facing: Facing,
     pub collider: Collider,
@@ -188,7 +188,7 @@ impl From<IntGridCell> for ColliderBundle {
 
 pub fn setup_ldtk_world(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(LdtkWorldBundle {
-        ldtk_handle: asset_server.load("levels.ldtk"),
+        ldtk_handle: asset_server.load("levels.ldtk").into(),
         transform: Transform::from_translation(Vec3::ZERO + LEVEL_TRANSLATION_OFFSET),
         ..Default::default()
     });
@@ -216,19 +216,16 @@ pub fn spawn_ldtk_entity(
             translation.z = 10.0;
             commands.spawn(WoodenStandBundle {
                 wooden_stand: WoodenStand,
-                sprite_bundle: SpriteBundle {
-                    sprite: Sprite {
-                        color: color::palettes::basic::GREEN.into(),
-                        ..default()
-                    },
-                    texture: texture_handle,
-                    transform: Transform::from_translation(translation),
+                sprite: Sprite {
+                    image: texture_handle,
+                    color: color::palettes::basic::GREEN.into(),
+                    texture_atlas: Some(TextureAtlas {
+                        index: 0,
+                        layout: atlas_layout_handle,
+                    }),
                     ..default()
                 },
-                texture_atlas: TextureAtlas {
-                    index: 0,
-                    layout: atlas_layout_handle,
-                },
+                transform: Transform::from_translation(translation),
                 collider_bundle: ColliderBundle {
                     collider: Collider::cuboid(TILE_SIZE, TILE_SIZE / 2.),
                     rigid_body: RigidBody::Fixed,
@@ -344,7 +341,7 @@ pub fn wooden_stand_through(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     q_player: Query<&Transform, With<Player>>,
     q_wooden_stand: Query<(), With<WoodenStand>>,
-    rapier_context: Res<RapierContext>,
+    rapier_context: Single<&RapierContext>,
 ) {
     if q_player.is_empty() {
         return;
@@ -381,26 +378,21 @@ pub fn wooden_stand_through(
 // 气球绳动画
 pub fn animate_balloon_rope(
     time: Res<Time>,
-    mut query: Query<
-        (
-            &mut AnimationTimer,
-            &mut AnimationIndices,
-            &mut TextureAtlas,
-        ),
-        With<BalloonRope>,
-    >,
+    mut query: Query<(&mut AnimationTimer, &mut AnimationIndices, &mut Sprite), With<BalloonRope>>,
 ) {
     for (mut timer, mut indices, mut sprite) in &mut query {
         timer.0.tick(time.delta());
         if timer.0.just_finished() {
             // 切换到下一个sprite
-            sprite.index = if indices.index == indices.sprite_indices.len() - 1 {
-                indices.index = 0;
-                indices.sprite_indices[indices.index]
-            } else {
-                indices.index += 1;
-                indices.sprite_indices[indices.index]
-            };
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = if indices.index == indices.sprite_indices.len() - 1 {
+                    indices.index = 0;
+                    indices.sprite_indices[indices.index]
+                } else {
+                    indices.index += 1;
+                    indices.sprite_indices[indices.index]
+                };
+            }
         }
     }
 }
@@ -409,12 +401,7 @@ pub fn animate_balloon_rope(
 pub fn aninmate_spring(
     mut spring_up_er: EventReader<SpringUpEvent>,
     mut q_spring: Query<
-        (
-            Entity,
-            &mut AnimationTimer,
-            &AnimationIndices,
-            &mut TextureAtlas,
-        ),
+        (Entity, &mut AnimationTimer, &AnimationIndices, &mut Sprite),
         With<Spring>,
     >,
     time: Res<Time>,
@@ -424,14 +411,18 @@ pub fn aninmate_spring(
         for (entity, mut timer, indices, mut sprite) in &mut q_spring {
             if spring_up_event.entity == entity {
                 timer.0.reset();
-                sprite.index = *indices.sprite_indices.last().unwrap();
+                if let Some(atlas) = &mut sprite.texture_atlas {
+                    atlas.index = *indices.sprite_indices.last().unwrap();
+                }
             }
         }
     }
     for (_, mut timer, indices, mut sprite) in &mut q_spring {
         timer.0.tick(time.delta());
         if timer.0.finished() {
-            sprite.index = *indices.sprite_indices.first().unwrap();
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = *indices.sprite_indices.first().unwrap();
+            }
         }
     }
 }

@@ -21,48 +21,43 @@ pub fn setup_start_menu(
 
     commands.spawn((
         OnStartMenuScreen,
-        SpriteBundle {
-            texture: texture_handle,
-            transform: Transform {
-                translation: Vec3::new(0.0, 1.0, 1.0),
-                scale: Vec3::new(3., 3., 1.0), //放大3倍
-                ..Default::default()
-            },
+        Sprite {
+            image: texture_handle,
+            texture_atlas: Some(TextureAtlas {
+                index: 0,
+                layout: atlas_layout_handle,
+            }),
             ..default()
         },
-        TextureAtlas {
-            index: 0,
-            layout: atlas_layout_handle,
+        Transform {
+            translation: Vec3::new(0.0, 1.0, 1.0),
+            scale: Vec3::new(3., 3., 1.0), //放大3倍
+            ..Default::default()
         },
     ));
 
     commands
         .spawn((
             OnStartMenuScreen,
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    margin: UiRect::top(Val::Px(200.0)),
-                    ..default()
-                },
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                margin: UiRect::top(Val::Px(200.0)),
                 ..default()
             },
         ))
         .with_children(|parent| {
-            parent.spawn(TextBundle {
-                text: Text::from_section(
-                    "PRESS ENTER KEY",
-                    TextStyle {
-                        font: asset_server.load("fonts/ThaleahFat_TTF.ttf"),
-                        font_size: 40.0,
-                        color: color::palettes::basic::GRAY.into(),
-                    },
-                ),
-                ..default()
-            });
+            parent.spawn((
+                Text::new("PRESS ENTER KEY"),
+                TextColor(color::palettes::basic::GRAY.into()),
+                TextFont {
+                    font: asset_server.load("fonts/ThaleahFat_TTF.ttf"),
+                    font_size: 40.0,
+                    ..default()
+                },
+            ));
         });
 }
 
